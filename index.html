@@ -311,9 +311,14 @@
                 <button class="cbtn2" onclick="document.getElementById('import-file').click()">Import from file</button>
             </div>
             <input type="file" id="import-file" accept="application/json" onchange="importPresets(event)">
-            <div class="menu-section-title" style="margin-top:20px">App Version</div>
+            <div class="menu-section-title" style="margin-top:20px">App Updates</div>
             <div class="menu-row">
+                <label>Current version</label>
                 <span id="app-version" class="menu-val"></span>
+            </div>
+            <div class="menu-row">
+                <button class="sbtn" id="btn-check-update" onclick="checkForUpdates()">Check for updates</button>
+                <span id="update-status" class="menu-val"></span>
             </div>
         </div>
 

@@ -348,6 +348,52 @@
     if (ver) ver.textContent = 'v' + APP_VERSION;
   }
 
+  // ── Check for updates (manual) ──────────────────────────────
+  window.checkForUpdates = async function () {
+    var btn = document.getElementById('btn-check-update');
+    var status = document.getElementById('update-status');
+    if (status) status.textContent = 'Checking…';
+    if (btn) btn.disabled = true;
+
+    if (!('serviceWorker' in navigator)) {
+      if (status) status.textContent = 'Not supported in this browser';
+      if (btn) btn.disabled = false;
+      return;
+    }
+    try {
+      var reg = window.__swReg || await navigator.serviceWorker.getRegistration();
+      if (!reg) {
+        if (status) status.textContent = 'Service worker not registered';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      await reg.update();
+      // Give the browser a moment to discover a waiting worker
+      await new Promise(function (r) { setTimeout(r, 800); });
+
+      if (reg.waiting) {
+        if (status) status.textContent = 'Updating…';
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        // controllerchange listener in index.html will reload
+      } else if (reg.installing) {
+        if (status) status.textContent = 'Downloading update…';
+        reg.installing.addEventListener('statechange', function () {
+          if (reg.waiting) {
+            if (status) status.textContent = 'Updating…';
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      } else {
+        if (status) status.textContent = 'Already up to date';
+        if (btn) btn.disabled = false;
+        setTimeout(function () { if (status) status.textContent = ''; }, 4000);
+      }
+    } catch (e) {
+      if (status) status.textContent = 'Update check failed';
+      if (btn) btn.disabled = false;
+    }
+  };
+
   // expose for SW-cue checking & first-paint init
   window.Features = {
     playCue: playCue,
