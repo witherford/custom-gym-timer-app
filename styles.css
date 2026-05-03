@@ -28,7 +28,15 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow-x:hidden;background:#0a0a0a;user-select:none;touch-action:manipulation;}
 #app{min-height:100svh;color:#f0f0f0;position:relative;font-family:system-ui,sans-serif;display:flex;flex-direction:column}
-#wp{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0;transition:background-size .3s,background-position .3s}
+#wp-backdrop{
+  position:absolute;inset:0;background-size:cover;background-position:center;z-index:0;
+  filter: blur(28px) saturate(1.2);
+  transform: scale(1.15);
+  transition: opacity .25s;
+  opacity: 0;
+  pointer-events: none;
+}
+#wp{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0;background-repeat:no-repeat;transition:background-size .3s,background-position .3s}
 #ov{position:absolute;inset:0;z-index:1;background:rgba(0,0,0,0.72);backdrop-filter:blur(var(--ov-blur));transition:background .3s, backdrop-filter .3s;}
 
 #top-clock {
@@ -317,6 +325,21 @@ input[type=file]{display:none}
 }
 .theme-swatch.active { border-color: var(--accent-light); background: rgba(200,16,46,0.15); }
 .theme-swatch .sw-dot { width:36px; height:36px; border-radius:50%; }
+
+.focal-pick-wrap { display:flex; flex-direction:column; gap:8px; flex:1; max-width:360px; }
+.focal-pick {
+  position:relative; width:100%; aspect-ratio: 16 / 10;
+  background-size: cover; background-position: center; background-color: rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.18); border-radius:10px; cursor:crosshair;
+  touch-action: none; user-select:none; overflow:hidden;
+}
+.focal-pick:focus-visible { outline:3px solid var(--accent-light); outline-offset:2px; }
+.focal-dot {
+  position:absolute; left:50%; top:50%; width:22px; height:22px; border-radius:50%;
+  border:3px solid #fff; background: rgba(200,16,46,0.85);
+  transform: translate(-50%,-50%); box-shadow: 0 0 0 2px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.5);
+  pointer-events:none;
+}
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
