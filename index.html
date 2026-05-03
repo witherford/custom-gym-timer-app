@@ -91,6 +91,16 @@
                 <select id="v-profile" onchange="timerCfg.voiceURI=this.value; pickVoice(); saveLocal();" style="flex:1; max-width:350px;"></select>
             </div>
             <div class="menu-row">
+                <label>Premium voices only</label>
+                <input type="checkbox" id="v-premium" onchange="timerCfg.premiumVoicesOnly=this.checked; rebuildVoiceList(); saveLocal();">
+                <span class="menu-val" style="font-size:0.85em;">Hide robotic system voices (David, Zira, etc.)</span>
+            </div>
+            <div class="menu-row" style="font-size:0.85em; color:rgba(255,255,255,0.5); line-height:1.5;">
+                <span>★ marked voices are higher-quality neural voices.
+                On Windows: Settings → Time &amp; Language → Speech → Add voices, install one ending in "(Natural)".
+                On iOS: Settings → Accessibility → Spoken Content → Voices → English → tap a voice and pick "Enhanced" or "Premium".</span>
+            </div>
+            <div class="menu-row">
                 <label>Volume</label>
                 <input type="range" id="v-vol" min="0" max="1" step="0.05" oninput="timerCfg.voiceVol=parseFloat(this.value); saveLocal();">
             </div>
@@ -377,7 +387,8 @@ var timerCfg={
   voiceCountdownOn: true,
   customCueStart: '',      // base64 data URL
   customCueEnd: '',
-  wpFitMode: 'cover'       // cover | contain | custom
+  wpFitMode: 'cover',      // cover | contain | custom
+  premiumVoicesOnly: false
 };
 var wpScale=100, wpPosX=50, wpPosY=50, wpLoaded=false;
 
@@ -529,23 +540,80 @@ function endOfRoundBeep() {
 
 var synth=window.speechSynthesis;
 var chosenVoice=null;
+
+// Score voices by likely quality, based on naming patterns. Higher = better.
+function rankVoice(v){
+  var n = (v.name || '').toLowerCase();
+  var net = v.localService ? 0 : 6; // Network voices (e.g. Google) usually higher quality
+  if (/\b(neural|natural|premium|enhanced)\b/.test(n)) return 100 + net;
+  if (/(samantha|alex|daniel|karen|fiona|moira|tessa).*enhanced/.test(n)) return 98;
+  if (/^google\s/.test(n)) return 90 + net;
+  if (/microsoft\s+(aria|jenny|guy|natasha|sonia|libby|ryan|emma|brian|nancy|ana|christopher|clara|liam|davis|tony|sara|amber)/.test(n)) return 85;
+  if (/^siri\b/.test(n)) return 80;
+  if (/(samantha|alex|daniel|karen|fiona|moira|tessa|nicky|aaron|allison|ava|susan)/.test(n)) return 70;
+  if (/microsoft\s+(david|zira|mark|hazel|susan|james|catherine|richard|linda)/.test(n)) return 12; // older SAPI voices
+  if (/^espeak/.test(n)) return 5; // Linux fallback, very robotic
+  return 30;
+}
+function isPremium(v){ return rankVoice(v) >= 70; }
+function preferEnglish(v){ return v.lang && v.lang.toLowerCase().startsWith('en'); }
+
+function rebuildVoiceList(){
+  var select = document.getElementById('v-profile');
+  if (!select) return;
+  var vs = synth.getVoices();
+  if (!vs.length) return;
+
+  var premiumOnly = !!timerCfg.premiumVoicesOnly;
+  var pool = vs.filter(preferEnglish);
+  if (!pool.length) pool = vs.slice();
+  if (premiumOnly) {
+    var p = pool.filter(isPremium);
+    if (p.length) pool = p;
+  }
+  pool.sort(function(a,b){ return rankVoice(b) - rankVoice(a); });
+
+  // Split into Premium / Standard groups
+  var premium = pool.filter(isPremium);
+  var standard = pool.filter(function(v){ return !isPremium(v); });
+
+  select.innerHTML = '';
+  function addGroup(label, list){
+    if (!list.length) return;
+    var og = document.createElement('optgroup'); og.label = label;
+    list.forEach(function(v){
+      var opt = document.createElement('option');
+      opt.value = v.voiceURI;
+      var star = isPremium(v) ? '★ ' : '';
+      opt.textContent = star + v.name + ' (' + v.lang + ')';
+      og.appendChild(opt);
+    });
+    select.appendChild(og);
+  }
+  addGroup('Recommended (premium)', premium);
+  addGroup('Standard system voices', standard);
+
+  if (timerCfg.voiceURI) select.value = timerCfg.voiceURI;
+}
+
 function pickVoice(){
   var vs = synth.getVoices(); if(!vs.length) return;
-  var select = document.getElementById('v-profile');
-  if (select && select.options.length === 0) {
-      vs.forEach(v => {
-          var opt = document.createElement('option');
-          opt.value = v.voiceURI;
-          opt.textContent = v.name + ' (' + v.lang + ')';
-          select.appendChild(opt);
-      });
-      if(timerCfg.voiceURI) select.value = timerCfg.voiceURI;
-  }
+  rebuildVoiceList();
+
   if (timerCfg.voiceURI) {
-      chosenVoice = vs.find(v => v.voiceURI === timerCfg.voiceURI) || vs[0];
-  } else {
-      var en = vs.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
-      chosenVoice = en[0] || vs[0];
+    chosenVoice = vs.find(function(v){ return v.voiceURI === timerCfg.voiceURI; });
+  }
+  if (!chosenVoice) {
+    // Auto-pick the best English premium voice
+    var pool = vs.filter(preferEnglish);
+    if (!pool.length) pool = vs.slice();
+    pool.sort(function(a,b){ return rankVoice(b) - rankVoice(a); });
+    chosenVoice = pool[0];
+    if (chosenVoice && !timerCfg.voiceURI) {
+      timerCfg.voiceURI = chosenVoice.voiceURI;
+      var sel = document.getElementById('v-profile');
+      if (sel) sel.value = chosenVoice.voiceURI;
+    }
   }
 }
 if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=pickVoice;
@@ -690,6 +758,9 @@ function syncSettingsUI() {
     document.getElementById('v-vol').value = timerCfg.voiceVol;
     document.getElementById('v-rate').value = timerCfg.voiceRate;
     document.getElementById('v-pitch').value = timerCfg.voicePitch;
+    var pv = document.getElementById('v-premium');
+    if (pv) pv.checked = !!timerCfg.premiumVoicesOnly;
+    rebuildVoiceList();
 }
 
 // ── TOP CLOCK ──
