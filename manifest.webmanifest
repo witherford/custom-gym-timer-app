@@ -28,5 +28,21 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open History",
+      "short_name": "History",
+      "description": "View your past timer sessions",
+      "url": "./?tab=history",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Open Stats",
+      "short_name": "Stats",
+      "description": "View your training stats",
+      "url": "./?tab=stats",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }

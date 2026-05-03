@@ -14,245 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Gym Timer">
-<style>
-:root {
-  --btn-size: 85px;
-  --btn-font: system-ui, sans-serif;
-  --btn-font-size: 11px;
-  --btn-color: #ffffff;
-  
-  --cp-font: system-ui, sans-serif;
-  --cp-font-size: 20px; 
-  
-  --t-font: system-ui, sans-serif;
-  --ov-blur: 0px;
-  --pill-size: 18px;
-  --rc-size: 32px;
-}
-
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow-x:hidden;background:#0a0a0a;user-select:none;touch-action:manipulation;}
-#app{min-height:100svh;color:#f0f0f0;position:relative;font-family:system-ui,sans-serif;display:flex;flex-direction:column}
-#wp{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0;transition:background-size .3s,background-position .3s}
-#ov{position:absolute;inset:0;z-index:1;background:rgba(0,0,0,0.72);backdrop-filter:blur(var(--ov-blur));transition:background .3s, backdrop-filter .3s;}
-
-#top-clock {
-  position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-  z-index: 100; font-family: 'Courier New', monospace; 
-  color: rgba(255,255,255,0.6); font-weight: bold; letter-spacing: 2px;
-  display: none; white-space: nowrap; transition: font-size 0.2s;
-}
-
-/* ── COMPACT HERO & MAIN TIMER AREA ── */
-#ct{position:relative;z-index:2;height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;}
-#hero{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;z-index:10;}
-
-/* RESPONSIVE RING WRAPPER: Takes min of Width, Height, or Max-size so it never overflows landscape mobile */
-#timer-ring-wrapper {
-  position: relative; 
-  width: min(85vw, 80vh, 800px); 
-  height: min(85vw, 80vh, 800px);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-}
-.main-timer-svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg) scale(1.05);pointer-events:none;z-index:0;}
-.main-timer-svg circle{fill:none;stroke-width:3.5;stroke-linecap:round;}
-.bg-ring{stroke:rgba(255,255,255,0.08);}
-.prog-ring{stroke:#c8102e; transition: stroke-dashoffset 0.1s linear;}
-
-#round-badge { display: none !important; }
-
-#t-display{position:relative;z-index:2;line-height:1;font-variant-numeric:tabular-nums;transition:color .2s;font-weight:800;letter-spacing:-2px;margin-bottom:5px;display:flex;align-items:baseline;justify-content:center;font-family:var(--t-font);}
-#t-ms{font-size:0.4em; opacity:0.6; margin-left:2px; font-weight:600;}
-
-#round-counter{position:relative;z-index:2;font-size:var(--rc-size);font-weight:600;color:rgba(255,255,255,0.9);margin-bottom:12px;letter-spacing:1px; display:none; text-align:center; padding:0 10px;}
-#phase-pill{position:relative;z-index:2;display:inline-block;padding:8px 24px;border-radius:25px;font-size:var(--pill-size);font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;border:2px solid; text-align:center;}
-
-@keyframes flash-text {
-  0%, 49% { opacity: 1; text-shadow: 0 0 10px rgba(255,0,0,0); }
-  50%, 100% { opacity: 0.2; text-shadow: 0 0 25px rgba(239, 68, 68, 0.9); }
-}
-.flash-text { animation: flash-text 1s infinite; }
-
-/* ── PRESETS ON HOME SCREEN ── */
-#home-preset-ring {
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 14px;
-  width: min(95vw, 650px); margin-top: 15px; z-index: 10;
-}
-.home-btn {
-  width: var(--btn-size); height: var(--btn-size); border-radius: 50%;
-  cursor: pointer; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  transition: transform 0.1s, border-color 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-}
-.home-btn:active { transform: scale(0.93); }
-.home-btn-label { 
-  font-family: var(--btn-font); font-size: var(--btn-font-size); color: var(--btn-color); 
-  text-align: center; line-height: 1.15; pointer-events: none; padding: 0 8px; word-break: break-word; 
-}
-
-/* ── CONTROLS ── */
-#ctrls{position:relative;z-index:2;display:flex;gap:clamp(10px,2vw,20px);justify-content:center;align-items:center;margin-top:20px;transition:opacity 0.2s;}
-.cbtn{border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s, filter .2s, background-color .2s;flex-shrink:0;box-shadow:0 6px 15px rgba(0,0,0,0.3); background:rgba(255,255,255,0.08); color:#f0f0f0; border:1.5px solid rgba(255,255,255,0.15);}
-.cbtn:hover{transform:scale(1.05); filter:brightness(1.15);}
-.cbtn:active{transform:scale(0.93); filter:brightness(0.9);}
-#btn-play{width:clamp(75px,18vw,120px);height:clamp(75px,18vw,120px);font-size:clamp(32px,7vw,48px);color:#fff; border:none;}
-.text-btn{width:auto; padding:0 clamp(16px,4vw,24px); border-radius:30px; font-size:clamp(14px,3.5vw,20px); font-weight:700; height:clamp(50px,12vw,70px); letter-spacing:1px;}
-.skip-btn{width:clamp(50px,12vw,70px); height:clamp(50px,12vw,70px); font-size:clamp(16px,4vw,22px);}
-
-/* ── BOTTOM BUTTONS (Menu & Lock) ── */
-#app-menu-btn {
-  position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); z-index: 101;
-  background: rgba(20,20,20,0.85); color: white; padding: 12px 28px; border-radius: 30px;
-  border: 1px solid rgba(255,255,255,0.15); font-size: clamp(14px, 4vw, 18px); font-weight: 600;
-  cursor: pointer; backdrop-filter: blur(8px); box-shadow: 0 5px 15px rgba(0,0,0,0.4);
-  transition: opacity 0.3s, transform 0.3s; white-space: nowrap;
-}
-#app-menu-btn:active { transform: translateX(-50%) scale(0.95); }
-
-#fixed-lock-btn {
-  position: fixed; bottom: 25px; right: 25px; width: clamp(45px, 10vw, 60px); height: clamp(45px, 10vw, 60px);
-  border-radius: 50%; background: rgba(20,20,20,0.85); color: #fff; font-size: clamp(18px, 5vw, 24px);
-  border: 1px solid rgba(255,255,255,0.15); z-index: 10000;
-  display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(8px); cursor: pointer; transition: transform 0.2s, background 0.2s, opacity 0.3s;
-  touch-action: none; user-select: none;
-}
-#fixed-lock-btn.locked { background: rgba(200,16,46,0.95); border-color: rgba(255,255,255,0.4); }
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-8px); }
-  40%, 80% { transform: translateX(8px); }
-}
-.shake { animation: shake 0.4s; }
-
-/* Invisible overlay that blocks clicks when screen is locked */
-#lock-overlay { display: none; position: fixed; inset: 0; z-index: 9999; }
-#lock-overlay.active { display: block; }
-
-/* ── UNIFIED CONTROL PANEL (Tabs) ── */
-#bottom-edit-menu {
-  position:fixed;bottom:0;left:0;right:0;z-index:150;
-  background:rgba(12,12,12,0.98);backdrop-filter:blur(20px);
-  border-top:1px solid rgba(255,255,255,0.1);
-  padding:25px;padding-bottom:calc(25px + env(safe-area-inset-bottom));
-  height:95vh; display:flex; flex-direction:column;
-  transform:translateY(110%);transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);
-  border-radius: 20px 20px 0 0; font-family: var(--cp-font); font-size: var(--cp-font-size);
-}
-#bottom-edit-menu.open { transform:translateY(0); }
-
-.cp-header { display: flex; justify-content: center; align-items: center; margin-bottom: 24px; flex-shrink: 0;}
-.cp-header h3 { font-size: calc(var(--cp-font-size) * 1.5); text-align: center; margin: 0; font-weight:800; letter-spacing:1px; color:#fff;}
-
-.cp-tabs { display: flex; gap: 12px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 8px; flex-shrink: 0; -webkit-overflow-scrolling: touch;}
-.tab-btn { 
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); 
-  padding: 14px 24px; border-radius: 12px; cursor: pointer; font-family: var(--cp-font); font-size: var(--cp-font-size); white-space: nowrap; font-weight:600;
-}
-.tab-btn.active { background: rgba(200,16,46,0.15); border-color: #c8102e; color: #ff6680; }
-
-.cp-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding-right: 5px; display:flex; flex-direction:column; -webkit-overflow-scrolling: touch;}
-.tab-pane { display: none; flex-direction: column; gap: 24px; flex: 1; }
-.tab-pane.active { display: flex; }
-
-/* Bottom Action Buttons */
-.cp-footer { display: flex; flex-direction: column; gap: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
-.cp-save-btn { background: #16a34a; color: #fff; border: none; padding: 18px; border-radius: 12px; font-size: calc(var(--cp-font-size) * 1.1); font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-.cp-discard-btn { background: #ef4444; color: #fff; border: none; padding: 18px; border-radius: 12px; font-size: calc(var(--cp-font-size) * 1.1); font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-
-/* Toggle Buttons */
-.toggle-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 14px 24px; border-radius: 10px; cursor: pointer; font-family: var(--cp-font); font-size: var(--cp-font-size); flex: 1; font-weight: 600; transition:0.2s; text-align:center;}
-.toggle-btn.active { background: #c8102e; border-color: #ff6680; }
-
-/* ── TIMERS SECTIONS ── */
-#sections-wrap{margin-bottom:0;}
-.sec-block{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;margin-bottom:20px}
-.sec-hdr{display:flex;align-items:center;gap:16px;margin-bottom:24px; flex-wrap:wrap;}
-.sec-name{background:transparent;border:none;color:#f0f0f0;font-size:calc(var(--cp-font-size) * 1.2);font-weight:700;flex:1;min-width:150px;outline:none;border-bottom:1px solid transparent;padding-bottom:4px;font-family:var(--cp-font);}
-.sec-name:focus{border-bottom:1px solid rgba(255,255,255,0.3)}
-.sec-color-dot{width:45px;height:45px;border:3px solid rgba(255,255,255,0.3);border-radius:50%;cursor:pointer;flex-shrink:0;transition:transform 0.1s;}
-.sec-color-dot:active{transform:scale(0.9);}
-.sec-del{background:none;border:none;color:rgba(255,255,255,0.3);font-size:24px;cursor:pointer;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:0.2s;}
-.sec-del:hover{color:#ef4444;background:rgba(239,68,68,0.15)}
-.btns-grid{display:flex;flex-wrap:wrap;gap:20px;align-items:center}
-
-.circ-btn{width:clamp(80px, 20vw, 120px);height:clamp(80px, 20vw, 120px);border-radius:50%;cursor:pointer;border:4px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;transition:border-color .15s,background .15s;flex-shrink:0}
-.circ-btn:hover{background:rgba(255,255,255,0.12)}
-.circ-btn.active{background:rgba(200,16,46,0.18)}
-.circ-btn.hidden-preset{opacity: 0.35; filter: grayscale(50%);}
-.circ-label{font-family:var(--btn-font);font-size:calc(var(--btn-font-size)*1.2);font-weight:600;color:var(--btn-color);text-align:center;line-height:1.2;width:95%;word-break:break-word;pointer-events:none}
-.circ-x{position:absolute;top:-6px;right:-6px;width:clamp(28px, 6vw, 34px);height:clamp(28px, 6vw, 34px);border-radius:50%;background:#1a1a1a;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:3}
-.circ-btn:hover .circ-x{display:flex}
-.circ-x:hover{background:#ef4444;color:#fff;border-color:#ef4444}
-.circ-edit-dot{position:absolute;bottom:-6px;right:-6px;width:clamp(28px, 6vw, 34px);height:clamp(28px, 6vw, 34px);border-radius:50%;background:#1a1a1a;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:3}
-.circ-btn:hover .circ-edit-dot{display:flex}
-.circ-edit-dot:hover{background:rgba(255,255,255,0.2);color:#fff}
-.add-circ{width:clamp(80px, 20vw, 120px);height:clamp(80px, 20vw, 120px);border-radius:50%;cursor:pointer;border:3px dashed rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.35);font-size:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .15s,color .15s}
-.add-circ:hover{border-color:rgba(255,255,255,0.5);color:rgba(255,255,255,0.7)}
-
-.add-section-btn {
-  width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.06); 
-  border: 3px dashed rgba(255,255,255,0.2); color: rgba(255,255,255,0.5); font-size: 40px; 
-  display: flex; align-items: center; justify-content: center; margin: 30px auto; 
-  cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-.add-section-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.4); color:#fff; }
-
-/* ── SETTINGS MENUS (Inside Tabs) ── */
-.menu-section-title{font-size:calc(var(--cp-font-size)*0.9);letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:20px;font-weight:bold; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;}
-.menu-row{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
-.menu-row label{color:rgba(255,255,255,0.7);min-width:160px; font-weight:500;}
-.menu-row input[type=text],.menu-row input[type=number], .menu-row select{
-  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#f0f0f0;
-  font-size:var(--cp-font-size);padding:14px 18px;outline:none;font-family:var(--cp-font); max-width:100%;
-}
-.menu-row select option { font-size: 18px; padding: 10px; background: #111; color: #fff;}
-.menu-row input[type=color]{width:60px;height:50px;border:1px solid rgba(255,255,255,0.15);border-radius:10px;background:transparent;cursor:pointer;padding:2px}
-.menu-row input[type=range]{flex:1;min-width:140px;accent-color:#c8102e}
-.menu-row input[type=checkbox] { width: 30px; height: 30px; accent-color: #c8102e; cursor: pointer; flex-shrink: 0; }
-.menu-val{color:rgba(255,255,255,0.5);min-width:55px}
-.menu-swatches{display:flex;flex-wrap:wrap;gap:16px}
-.menu-swatch{width:50px;height:50px;border-radius:50%;border:2px solid rgba(255,255,255,0.15);cursor:pointer;flex-shrink:0;transition:border-color .15s}
-input[type=file]{display:none}
-
-/* ── PRESET EDIT MODAL ── */
-#preset-edit-modal { display: none; position:absolute; inset:0; background:rgba(10,10,10,0.95); z-index:200; padding:25px; overflow-y:auto; overflow-x:hidden; backdrop-filter:blur(10px); border-radius:20px 20px 0 0; -webkit-overflow-scrolling: touch;}
-.modal-wrap{background:transparent; padding:0; margin-bottom:20px; border:none; }
-.modal-title{font-size:calc(var(--cp-font-size)*1.3); text-transform:none; color:#fff; margin-bottom:24px; font-weight:800; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;}
-.mrow{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-.mrow label{color:rgba(255,255,255,0.75);min-width:140px; font-weight:500;}
-.mrow input[type=number]{
-  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#f0f0f0;
-  font-size:var(--cp-font-size);padding:14px;text-align:center;outline:none;font-family:var(--cp-font);
-  transition: opacity 0.2s; width:80px;
-}
-.mrow input[type=checkbox] { width: 30px; height: 30px; accent-color: #c8102e; cursor: pointer; flex-shrink: 0; }
-.input-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-
-/* Disabled Inputs Styling */
-.mrow input:disabled { opacity: 0.3; cursor: not-allowed; background: rgba(255,255,255,0.02); }
-.mrow label { transition: opacity 0.2s; }
-
-/* Layout adjustments for long text boxes */
-.mrow-col { display:flex; flex-direction:column; gap:16px; margin-top:24px; }
-.mrow-col label { display:flex; align-items:center; gap:14px; width:100%; color:rgba(255,255,255,0.8); font-weight:500; font-size: calc(var(--cp-font-size) * 0.9); line-height: 1.4; }
-
-.preview-tag{color:#ff6680;letter-spacing:.5px;font-weight:600;margin-top:16px;display:block;background:rgba(200,16,46,0.1);padding:16px;border-radius:12px;border:1px solid rgba(200,16,46,0.3); text-align:center;}
-.sbtn{background:#c8102e;border:none;color:#fff;border-radius:12px;padding:16px 32px;font-size:var(--cp-font-size);font-family:var(--cp-font);cursor:pointer;margin-right:14px;font-weight:800; box-shadow:0 4px 10px rgba(0,0,0,0.3); margin-bottom:10px;}
-.cbtn2{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#f0f0f0;border-radius:12px;padding:16px 32px;font-size:var(--cp-font-size);font-family:var(--cp-font);cursor:pointer;margin-right:14px;font-weight:600; margin-bottom:10px;}
-.unit{color:rgba(255,255,255,0.4);font-size:calc(var(--cp-font-size)*0.9); transition: opacity 0.2s;}
-
-/* ── RESPONSIVE MEDIA QUERIES ── */
-@media (max-width: 600px) {
-    #bottom-edit-menu, #preset-edit-modal { padding: 15px; }
-    .menu-row label, .mrow label { min-width: 100%; margin-bottom: 5px; }
-    .input-group { width: 100%; }
-    .sbtn, .cbtn2 { width: 100%; margin-right: 0; }
-    .sec-block { padding: 15px; }
-    .tab-btn { padding: 12px 16px; font-size: calc(var(--cp-font-size) * 0.85); }
-}
-</style>
+<!-- styles moved to styles.css -->
 </head>
 <body>
 <div id="app">
@@ -304,6 +66,10 @@ input[type=file]{display:none}
         <button class="tab-btn" onclick="switchTab('voice')">Voice</button>
         <button class="tab-btn" onclick="switchTab('appearance')">Appearance</button>
         <button class="tab-btn" onclick="switchTab('wallpaper')">Wallpaper</button>
+        <button class="tab-btn" onclick="switchTab('theme')">Theme</button>
+        <button class="tab-btn" onclick="switchTab('history')">History</button>
+        <button class="tab-btn" onclick="switchTab('stats')">Stats</button>
+        <button class="tab-btn" onclick="switchTab('data')">Data</button>
     </div>
 
     <div class="cp-content">
@@ -473,14 +239,95 @@ input[type=file]{display:none}
             </div>
         </div>
 
+        <div id="tab-theme" class="tab-pane">
+            <div class="menu-section-title">Theme</div>
+            <div class="theme-swatch-row" id="theme-swatches"></div>
+
+            <div class="menu-section-title" style="margin-top:24px">Accent Colour</div>
+            <div class="menu-row">
+                <label>Accent</label>
+                <input type="color" id="th-accent" oninput="setAccent(this.value)">
+                <button class="cbtn2" onclick="setAccent('#c8102e')">Reset</button>
+            </div>
+
+            <div class="menu-section-title" style="margin-top:24px">Wake Lock</div>
+            <div class="menu-row">
+                <label>Keep screen on while timer runs</label>
+                <input type="checkbox" id="th-wakelock" onchange="timerCfg.wakeLockOn=this.checked;saveLocal();">
+            </div>
+
+            <div class="menu-section-title" style="margin-top:24px">Vibration (mobile)</div>
+            <div class="menu-row">
+                <label>Vibrate on phase change</label>
+                <input type="checkbox" id="th-vibrate" onchange="timerCfg.vibrateOn=this.checked;saveLocal();">
+            </div>
+
+            <div class="menu-section-title" style="margin-top:24px">Voice Countdown (3-2-1)</div>
+            <div class="menu-row">
+                <label>Speak final 3-2-1 of Get Ready</label>
+                <input type="checkbox" id="th-voicecount" onchange="timerCfg.voiceCountdownOn=this.checked;saveLocal();">
+            </div>
+
+            <div class="menu-section-title" style="margin-top:24px">Custom Audio Cues</div>
+            <div class="menu-row">
+                <label>Round-start sound</label>
+                <button class="cbtn2" onclick="document.getElementById('cue-start-file').click()">Upload</button>
+                <button class="cbtn2" onclick="clearCue('start')">Reset</button>
+                <span id="cue-start-status" class="menu-val"></span>
+            </div>
+            <div class="menu-row">
+                <label>Round-end sound</label>
+                <button class="cbtn2" onclick="document.getElementById('cue-end-file').click()">Upload</button>
+                <button class="cbtn2" onclick="clearCue('end')">Reset</button>
+                <span id="cue-end-status" class="menu-val"></span>
+            </div>
+            <div class="menu-row">
+                <button class="cbtn2" onclick="testCue('start')">Test start</button>
+                <button class="cbtn2" onclick="testCue('end')">Test end</button>
+            </div>
+            <input type="file" id="cue-start-file" accept="audio/*" onchange="loadCue('start', event)">
+            <input type="file" id="cue-end-file" accept="audio/*" onchange="loadCue('end', event)">
+        </div>
+
+        <div id="tab-history" class="tab-pane">
+            <div class="menu-section-title">Recent Sessions</div>
+            <div class="menu-row" style="justify-content:flex-end;">
+                <button class="cbtn2" onclick="clearHistory()">Clear all</button>
+            </div>
+            <div id="history-list" class="history-list"></div>
+        </div>
+
+        <div id="tab-stats" class="tab-pane">
+            <div class="menu-section-title">All-time Stats</div>
+            <div id="stats-grid" class="stat-grid"></div>
+            <div class="menu-section-title" style="margin-top:20px">Last 7 Days</div>
+            <div id="stats-week" class="stat-grid"></div>
+        </div>
+
+        <div id="tab-data" class="tab-pane">
+            <div class="menu-section-title">Import / Export Presets</div>
+            <div class="menu-row">
+                <button class="sbtn" onclick="exportPresets()">Export presets to file</button>
+                <button class="cbtn2" onclick="document.getElementById('import-file').click()">Import from file</button>
+            </div>
+            <input type="file" id="import-file" accept="application/json" onchange="importPresets(event)">
+            <div class="menu-section-title" style="margin-top:20px">App Version</div>
+            <div class="menu-row">
+                <span id="app-version" class="menu-val"></span>
+            </div>
+        </div>
+
         <div class="cp-footer">
             <button class="cp-save-btn" onclick="saveAndExit()">Save and exit</button>
             <button class="cp-discard-btn" onclick="exitWithoutSaving()">Exit and do not save</button>
         </div>
     </div>
-    
+
     <div id="preset-edit-modal"></div>
   </div>
+
+  <div id="aria-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+  <div id="update-toast" role="status" onclick="applyUpdate()">New version available — tap to refresh</div>
 
   <input type="file" id="wp-file" accept="image/*" onchange="loadWP(event)">
 </div>
@@ -494,7 +341,15 @@ var timerCfg={
   presetBtnSize:85, presetBtnFont:'system-ui, sans-serif', presetBtnFontSize:11, presetBtnColor:'#ffffff',
   cpFont:'system-ui, sans-serif', cpFontSize:20, showClock: false, clock12h: false, clockSize: 24,
   voiceOn: true, voiceVol: 1.0, voiceRate: 1.0, voicePitch: 1.0, voiceURI: '',
-  tFont: 'system-ui, sans-serif', bgBlur: 0, pillSize: 18, rcSize: 32
+  tFont: 'system-ui, sans-serif', bgBlur: 0, pillSize: 18, rcSize: 32,
+  // Feature additions:
+  theme: 'dark',           // dark | light | amoled
+  accent: '#c8102e',
+  wakeLockOn: true,
+  vibrateOn: true,
+  voiceCountdownOn: true,
+  customCueStart: '',      // base64 data URL
+  customCueEnd: ''
 };
 var wpScale=100, wpPosX=50, wpPosY=50, wpLoaded=false;
 
@@ -620,9 +475,13 @@ function playBeep(freq, dur, vol, type='square'){
   }catch(e){}
 }
 
-function startOfRoundBeep() { playBeep(1200, 0.6, 1.0, 'square'); }
+function startOfRoundBeep() {
+  if (window.Features && window.Features.playCue && window.Features.playCue('start')) return;
+  playBeep(1200, 0.6, 1.0, 'square');
+}
 
 function endOfRoundBeep() {
+  if (window.Features && window.Features.playCue && window.Features.playCue('end')) return;
   try {
     var ctx = getAudioCtx(); var now = ctx.currentTime;
     function b(time, f, d) {
@@ -964,6 +823,7 @@ function tick(){
 
   // Logic per second tick
   if (secLeft !== lastSecLeft) {
+      window.dispatchEvent(new CustomEvent('timer:tick',{detail:{secLeft:secLeft,isReady:isReady,isRest:isRest,round:curRound}}));
       if (isReady && secLeft <= grBeepLimit && secLeft > 0) {
           playBeep(880, 0.1, 0.3);
       } else if (!isReady && secLeft <= warnBeepLimit && secLeft > 0) {
@@ -998,6 +858,7 @@ function loadPreset(id){
   var p=findPreset(id); if(!p)return;
   var s=findSectionForPreset(id);
   stopTimer(); activePid=id; curPreset=p; curRound=0; isRest=false; isReady=false;
+  window.dispatchEvent(new CustomEvent('timer:loaded',{detail:{preset:p,section:s}}));
   var w=(p.workMin||0)*60 + (p.workSec||0);
   timeLeftMs=w*1000; totalTimeMs=w*1000;
   
@@ -1043,6 +904,7 @@ function togglePlay(){
     paused=false;
     document.getElementById('btn-play').innerHTML='&#10074;&#10074;';
     syncUIState();
+    window.dispatchEvent(new CustomEvent('timer:play',{detail:{preset:curPreset}}));
     if(curRound===0&&!isRest&&!isReady) {
         if(curPreset.disableGetReady) {
             curRound=1; startRound();
@@ -1061,11 +923,13 @@ function togglePlay(){
     syncUIState();
     cancelAnimationFrame(reqFrame);
     playBeep(440, 0.1, 0.2, 'sine');
+    window.dispatchEvent(new CustomEvent('timer:pause'));
   }
 }
 
 function startGetReady(){
   isReady=true; isRest=false;
+  window.dispatchEvent(new CustomEvent('timer:phase',{detail:{phase:'ready'}}));
   var gr = curPreset.getReady !== undefined ? curPreset.getReady : 10;
   timeLeftMs=gr*1000; totalTimeMs=gr*1000;
   if(curRound===0) curRound=1;
@@ -1082,6 +946,7 @@ function startGetReady(){
 function startRound(){
   var w=(curPreset.workMin||0)*60 + (curPreset.workSec||0);
   timeLeftMs=w*1000; totalTimeMs=w*1000;
+  window.dispatchEvent(new CustomEvent('timer:phase',{detail:{phase:'work',round:curRound,total:curPreset.rounds}}));
   
   var rc = document.getElementById('round-counter');
   rc.style.display = 'block';
@@ -1119,6 +984,7 @@ function nextPhase(){
       isRest=true; timeLeftMs=rest*1000; totalTimeMs=rest*1000;
       document.getElementById('round-counter').textContent = 'Resting';
       setPhasePill('Rest','rest');
+      window.dispatchEvent(new CustomEvent('timer:phase',{detail:{phase:'rest',round:curRound,total:curPreset.rounds}}));
       updateMainCircle(100, timerCfg.restColor||'#f59e0b');
       
       var rSpeech = buildTimeSpeechStr(curPreset.restMin||0, curPreset.restSec||0);
@@ -1210,6 +1076,7 @@ function skipPhase(){if(!paused)nextPhase();}
 
 function done(){
   paused=true;
+  window.dispatchEvent(new CustomEvent('timer:done',{detail:{preset:curPreset,rounds:curPreset?curPreset.rounds:0}}));
   document.getElementById('btn-play').innerHTML='&#9654;';
   document.getElementById('t-display').classList.remove('flash-text');
   document.getElementById('round-counter').textContent = 'Session Complete';
@@ -1227,6 +1094,7 @@ function done(){
 
 function stopTimer(){
   cancelAnimationFrame(reqFrame); paused=true; curRound=0; isRest=false; isReady=false;
+  window.dispatchEvent(new CustomEvent('timer:stop'));
   document.getElementById('btn-play').innerHTML='&#9654;';
   document.getElementById('t-display').classList.remove('flash-text');
   document.getElementById('round-counter').style.display = 'none';
@@ -1498,11 +1366,37 @@ if (!activePid) {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('service-worker.js').catch(function (err) {
+    navigator.serviceWorker.register('service-worker.js').then(function (reg) {
+      window.__swReg = reg;
+      reg.addEventListener('updatefound', function () {
+        var nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', function () {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version waiting
+            var t = document.getElementById('update-toast');
+            if (t) t.classList.add('show');
+          }
+        });
+      });
+    }).catch(function (err) {
       console.error('SW registration failed:', err);
+    });
+
+    var refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
     });
   });
 }
+
+function applyUpdate() {
+  var reg = window.__swReg;
+  if (reg && reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+}
 </script>
+<script src="features.js" defer></script>
 </body>
 </html>
