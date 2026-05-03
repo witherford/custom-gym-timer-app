@@ -350,7 +350,6 @@
   </div>
 
   <div id="aria-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
-  <div id="update-toast" role="status" onclick="applyUpdate()">New version available — tap to refresh</div>
 
   <input type="file" id="wp-file" accept="image/*" onchange="loadWP(event)">
 </div>
@@ -1426,17 +1425,6 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('service-worker.js').then(function (reg) {
       window.__swReg = reg;
-      reg.addEventListener('updatefound', function () {
-        var nw = reg.installing;
-        if (!nw) return;
-        nw.addEventListener('statechange', function () {
-          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-            // New version waiting
-            var t = document.getElementById('update-toast');
-            if (t) t.classList.add('show');
-          }
-        });
-      });
     }).catch(function (err) {
       console.error('SW registration failed:', err);
     });

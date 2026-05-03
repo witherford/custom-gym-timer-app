@@ -294,17 +294,6 @@ input[type=file]{display:none}
 }
 
 
-/* ── NEW: Update toast ── */
-#update-toast {
-  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(150%);
-  background: rgba(20,20,20,0.95); color: #fff; padding: 14px 22px; border-radius: 30px;
-  border: 1px solid var(--accent); z-index: 10001; font-weight: 600; cursor: pointer;
-  backdrop-filter: blur(8px); box-shadow: 0 5px 20px rgba(0,0,0,0.5);
-  transition: transform 0.4s cubic-bezier(0.4,0,0.2,1); white-space: nowrap;
-  font-size: clamp(13px, 3.5vw, 16px);
-}
-#update-toast.show { transform: translateX(-50%) translateY(0); }
-
 /* ── NEW: History / Stats list ── */
 .history-list { display:flex; flex-direction:column; gap:10px; }
 .history-row {
