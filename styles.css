@@ -226,6 +226,7 @@ input[type=file]{display:none}
 .cbtn2{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#f0f0f0;border-radius:12px;padding:16px 32px;font-size:var(--cp-font-size);font-family:var(--cp-font);cursor:pointer;margin-right:14px;font-weight:600; margin-bottom:10px;}
 .unit{color:rgba(255,255,255,0.4);font-size:calc(var(--cp-font-size)*0.9); transition: opacity 0.2s;}
 
+/* ── RESPONSIVE: Mobile (default <600px) ── */
 @media (max-width: 600px) {
     #bottom-edit-menu, #preset-edit-modal { padding: 15px; }
     .menu-row label, .mrow label { min-width: 100%; margin-bottom: 5px; }
@@ -233,7 +234,65 @@ input[type=file]{display:none}
     .sbtn, .cbtn2 { width: 100%; margin-right: 0; }
     .sec-block { padding: 15px; }
     .tab-btn { padding: 12px 16px; font-size: calc(var(--cp-font-size) * 0.85); }
+    #app-menu-btn { padding: 10px 22px; }
 }
+
+/* ── RESPONSIVE: Tablet (600–1199px) ── */
+@media (min-width: 600px) and (max-width: 1199px) {
+    :root {
+      --btn-size: 110px;
+      --cp-font-size: 22px;
+      --pill-size: 22px;
+      --rc-size: 38px;
+    }
+    #bottom-edit-menu, #preset-edit-modal { padding: 32px; max-width: 900px; left: 50%; right: auto; transform: translate(-50%, 110%); }
+    #bottom-edit-menu.open { transform: translate(-50%, 0); }
+    .menu-row label, .mrow label { min-width: 200px; }
+    .cp-content { max-width: 760px; margin: 0 auto; width: 100%; }
+}
+
+/* ── RESPONSIVE: Desktop / TV (>=1200px) ── */
+@media (min-width: 1200px) {
+    :root {
+      --btn-size: 140px;
+      --btn-font-size: 16px;
+      --cp-font-size: 26px;
+      --pill-size: 28px;
+      --rc-size: 48px;
+    }
+    #bottom-edit-menu { max-width: 1200px; left: 50%; right: auto; transform: translate(-50%, 110%); padding: 40px 60px; height: 90vh; }
+    #bottom-edit-menu.open { transform: translate(-50%, 0); }
+    #preset-edit-modal { padding: 40px 60px; }
+    .cp-content { max-width: 1000px; margin: 0 auto; width: 100%; }
+    .cp-tabs { justify-content: center; }
+    .menu-row label, .mrow label { min-width: 240px; }
+    .sbtn, .cbtn2 { padding: 18px 36px; }
+    #app-menu-btn { font-size: 20px; padding: 16px 36px; }
+    .home-btn { box-shadow: 0 6px 14px rgba(0,0,0,0.4); }
+}
+
+/* ── RESPONSIVE: Large TV / 4K (>=1920px) ── */
+@media (min-width: 1920px) {
+    :root {
+      --btn-size: 180px;
+      --btn-font-size: 20px;
+      --cp-font-size: 32px;
+      --pill-size: 36px;
+      --rc-size: 60px;
+    }
+    #bottom-edit-menu { max-width: 1500px; padding: 50px 80px; }
+    #preset-edit-modal { padding: 50px 80px; }
+    .cp-content { max-width: 1300px; }
+    #btn-play { width: 160px; height: 160px; font-size: 64px; }
+    #fixed-lock-btn { width: 80px; height: 80px; font-size: 32px; bottom: 40px; right: 40px; }
+    #app-menu-btn { font-size: 26px; padding: 22px 48px; bottom: 40px; }
+}
+
+/* ── ORIENTATION: Portrait on tablets/desktop keeps proper proportions ── */
+@media (orientation: portrait) and (min-width: 600px) {
+    #timer-ring-wrapper { width: min(85vw, 60vh, 800px); height: min(85vw, 60vh, 800px); }
+}
+
 
 /* ── NEW: Update toast ── */
 #update-toast {

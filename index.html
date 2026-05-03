@@ -70,6 +70,7 @@
         <button class="tab-btn" onclick="switchTab('history')">History</button>
         <button class="tab-btn" onclick="switchTab('stats')">Stats</button>
         <button class="tab-btn" onclick="switchTab('data')">Data</button>
+        <button class="tab-btn" onclick="switchTab('update')">Update App</button>
     </div>
 
     <div class="cp-content">
@@ -210,6 +211,14 @@
                 <label>Solid background</label>
                 <input type="color" id="mn-bg" oninput="timerCfg.bgColor=this.value;applyBgColor();saveLocal();">
             </div>
+            <div class="menu-row" id="wp-fitmode-row" style="display:none">
+                <label>Fit mode</label>
+                <select id="wp-fitmode" onchange="setWpFitMode(this.value)" style="flex:1; max-width:280px;">
+                    <option value="cover">Auto-fit (fill screen)</option>
+                    <option value="contain">Show entire image</option>
+                    <option value="custom">Custom zoom &amp; position</option>
+                </select>
+            </div>
             <div class="menu-row" id="wp-scale-row" style="display:none">
                 <label>Image zoom</label>
                 <input type="range" id="wp-scale" min="50" max="200" step="5" oninput="applyWpScale(this.value);saveLocal();">
@@ -311,7 +320,10 @@
                 <button class="cbtn2" onclick="document.getElementById('import-file').click()">Import from file</button>
             </div>
             <input type="file" id="import-file" accept="application/json" onchange="importPresets(event)">
-            <div class="menu-section-title" style="margin-top:20px">App Updates</div>
+        </div>
+
+        <div id="tab-update" class="tab-pane">
+            <div class="menu-section-title">Update App</div>
             <div class="menu-row">
                 <label>Current version</label>
                 <span id="app-version" class="menu-val"></span>
@@ -319,6 +331,12 @@
             <div class="menu-row">
                 <button class="sbtn" id="btn-check-update" onclick="checkForUpdates()">Check for updates</button>
                 <span id="update-status" class="menu-val"></span>
+            </div>
+            <div class="menu-row" style="margin-top:14px;">
+                <span class="menu-val" style="flex:1; line-height:1.5;">
+                    Tapping <strong>Check for updates</strong> contacts the server, downloads any new
+                    version, and reloads the app automatically with the latest features.
+                </span>
             </div>
         </div>
 
@@ -354,7 +372,8 @@ var timerCfg={
   vibrateOn: true,
   voiceCountdownOn: true,
   customCueStart: '',      // base64 data URL
-  customCueEnd: ''
+  customCueEnd: '',
+  wpFitMode: 'cover'       // cover | contain | custom
 };
 var wpScale=100, wpPosX=50, wpPosY=50, wpLoaded=false;
 
@@ -424,8 +443,7 @@ function loadLocal() {
     if(wp) {
       wpLoaded = true;
       document.getElementById('wp').style.backgroundImage = wp;
-      document.getElementById('wp').style.backgroundSize = 'cover';
-      document.getElementById('wp').style.backgroundPosition = '50% 50%';
+      applyWpFitMode();
     }
   } catch(e) {}
 }
@@ -642,14 +660,16 @@ function syncSettingsUI() {
     document.getElementById('mn-ov-v').textContent = timerCfg.overlayOpacity + '%';
     document.getElementById('mn-blur').value = timerCfg.bgBlur;
     document.getElementById('mn-blur-v').textContent = timerCfg.bgBlur + 'px';
+    var fmEl = document.getElementById('wp-fitmode');
+    if (fmEl) fmEl.value = timerCfg.wpFitMode || 'cover';
     if(hasWp()) {
-        document.getElementById('wp-scale-row').style.display='flex';
-        document.getElementById('wp-posX-row').style.display='flex';
-        document.getElementById('wp-posY-row').style.display='flex';
+        document.getElementById('wp-fitmode-row').style.display='flex';
         document.getElementById('wp-scale').value = wpScale;
         document.getElementById('wp-posX').value = wpPosX;
         document.getElementById('wp-posY').value = wpPosY;
+        applyWpFitMode();
     } else {
+        document.getElementById('wp-fitmode-row').style.display='none';
         document.getElementById('wp-scale-row').style.display='none';
         document.getElementById('wp-posX-row').style.display='none';
         document.getElementById('wp-posY-row').style.display='none';
@@ -685,6 +705,37 @@ function applyWpPos(){
   document.getElementById('wp-posY-v').textContent=wpPosY+'%';
   document.getElementById('wp').style.backgroundPosition=wpPosX+'% '+wpPosY+'%';
 }
+function applyWpFitMode(){
+  var mode = timerCfg.wpFitMode || 'cover';
+  var wp = document.getElementById('wp');
+  var custom = mode === 'custom';
+  document.getElementById('wp-scale-row').style.display = (custom && hasWp()) ? 'flex' : 'none';
+  document.getElementById('wp-posX-row').style.display = (custom && hasWp()) ? 'flex' : 'none';
+  document.getElementById('wp-posY-row').style.display = (custom && hasWp()) ? 'flex' : 'none';
+  if (!hasWp()) return;
+  if (mode === 'cover') {
+    wp.style.backgroundSize = 'cover';
+    wp.style.backgroundPosition = 'center center';
+    wp.style.backgroundRepeat = 'no-repeat';
+  } else if (mode === 'contain') {
+    wp.style.backgroundSize = 'contain';
+    wp.style.backgroundPosition = 'center center';
+    wp.style.backgroundRepeat = 'no-repeat';
+  } else {
+    applyWpScale(wpScale);
+    applyWpPos();
+  }
+}
+function setWpFitMode(mode){
+  timerCfg.wpFitMode = mode;
+  applyWpFitMode();
+  saveLocal();
+}
+window.addEventListener('resize', function(){
+  // CSS cover/contain auto-adapt; this is a defensive nudge for engines
+  // that don't reflow the bg layer on orientation change.
+  if (timerCfg.wpFitMode !== 'custom') applyWpFitMode();
+});
 function applyBgColor(){
   if(!hasWp()) document.getElementById('app').style.background=timerCfg.bgColor;
   applyTimerStyle();
@@ -1130,12 +1181,13 @@ function loadWP(e){
     document.getElementById('wp-posX').value=50; document.getElementById('wp-posX-v').textContent='50%';
     document.getElementById('wp-posY').value=50; document.getElementById('wp-posY-v').textContent='50%';
     var wp=document.getElementById('wp');
-    wp.style.backgroundImage='url('+ev.target.result+')'; wp.style.backgroundSize='cover'; wp.style.backgroundPosition='50% 50%';
+    wp.style.backgroundImage='url('+ev.target.result+')';
     document.getElementById('app').style.background='transparent';
-    document.getElementById('wp-scale-row').style.display='flex';
-    document.getElementById('wp-posX-row').style.display='flex';
-    document.getElementById('wp-posY-row').style.display='flex';
-    saveLocal(); 
+    document.getElementById('wp-fitmode-row').style.display='flex';
+    if (!timerCfg.wpFitMode) timerCfg.wpFitMode = 'cover';
+    document.getElementById('wp-fitmode').value = timerCfg.wpFitMode;
+    applyWpFitMode();
+    saveLocal();
   };
   r.readAsDataURL(f);
 }
@@ -1143,6 +1195,7 @@ function loadWP(e){
 function clearWP(){
   wpLoaded=false; document.getElementById('wp').style.backgroundImage='none';
   document.getElementById('app').style.background=timerCfg.bgColor;
+  document.getElementById('wp-fitmode-row').style.display='none';
   document.getElementById('wp-scale-row').style.display='none';
   document.getElementById('wp-posX-row').style.display='none';
   document.getElementById('wp-posY-row').style.display='none';
