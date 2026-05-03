@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Custom Gym Timer</title>
+<meta name="description" content="Configurable interval and round timer for gym workouts.">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gym Timer">
+<style>
+:root {
+  --btn-size: 85px;
+  --btn-font: system-ui, sans-serif;
+  --btn-font-size: 11px;
+  --btn-color: #ffffff;
+  
+  --cp-font: system-ui, sans-serif;
+  --cp-font-size: 20px; 
+  
+  --t-font: system-ui, sans-serif;
+  --ov-blur: 0px;
+  --pill-size: 18px;
+  --rc-size: 32px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow-x:hidden;background:#0a0a0a;user-select:none;touch-action:manipulation;}
+#app{min-height:100svh;color:#f0f0f0;position:relative;font-family:system-ui,sans-serif;display:flex;flex-direction:column}
+#wp{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0;transition:background-size .3s,background-position .3s}
+#ov{position:absolute;inset:0;z-index:1;background:rgba(0,0,0,0.72);backdrop-filter:blur(var(--ov-blur));transition:background .3s, backdrop-filter .3s;}
+
+#top-clock {
+  position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+  z-index: 100; font-family: 'Courier New', monospace; 
+  color: rgba(255,255,255,0.6); font-weight: bold; letter-spacing: 2px;
+  display: none; white-space: nowrap; transition: font-size 0.2s;
+}
+
+/* ── COMPACT HERO & MAIN TIMER AREA ── */
+#ct{position:relative;z-index:2;height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;}
+#hero{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;z-index:10;}
+
+/* RESPONSIVE RING WRAPPER: Takes min of Width, Height, or Max-size so it never overflows landscape mobile */
+#timer-ring-wrapper {
+  position: relative; 
+  width: min(85vw, 80vh, 800px); 
+  height: min(85vw, 80vh, 800px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.main-timer-svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg) scale(1.05);pointer-events:none;z-index:0;}
+.main-timer-svg circle{fill:none;stroke-width:3.5;stroke-linecap:round;}
+.bg-ring{stroke:rgba(255,255,255,0.08);}
+.prog-ring{stroke:#c8102e; transition: stroke-dashoffset 0.1s linear;}
+
+#round-badge { display: none !important; }
+
+#t-display{position:relative;z-index:2;line-height:1;font-variant-numeric:tabular-nums;transition:color .2s;font-weight:800;letter-spacing:-2px;margin-bottom:5px;display:flex;align-items:baseline;justify-content:center;font-family:var(--t-font);}
+#t-ms{font-size:0.4em; opacity:0.6; margin-left:2px; font-weight:600;}
+
+#round-counter{position:relative;z-index:2;font-size:var(--rc-size);font-weight:600;color:rgba(255,255,255,0.9);margin-bottom:12px;letter-spacing:1px; display:none; text-align:center; padding:0 10px;}
+#phase-pill{position:relative;z-index:2;display:inline-block;padding:8px 24px;border-radius:25px;font-size:var(--pill-size);font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;border:2px solid; text-align:center;}
+
+@keyframes flash-text {
+  0%, 49% { opacity: 1; text-shadow: 0 0 10px rgba(255,0,0,0); }
+  50%, 100% { opacity: 0.2; text-shadow: 0 0 25px rgba(239, 68, 68, 0.9); }
+}
+.flash-text { animation: flash-text 1s infinite; }
+
+/* ── PRESETS ON HOME SCREEN ── */
+#home-preset-ring {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 14px;
+  width: min(95vw, 650px); margin-top: 15px; z-index: 10;
+}
+.home-btn {
+  width: var(--btn-size); height: var(--btn-size); border-radius: 50%;
+  cursor: pointer; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: transform 0.1s, border-color 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+.home-btn:active { transform: scale(0.93); }
+.home-btn-label { 
+  font-family: var(--btn-font); font-size: var(--btn-font-size); color: var(--btn-color); 
+  text-align: center; line-height: 1.15; pointer-events: none; padding: 0 8px; word-break: break-word; 
+}
+
+/* ── CONTROLS ── */
+#ctrls{position:relative;z-index:2;display:flex;gap:clamp(10px,2vw,20px);justify-content:center;align-items:center;margin-top:20px;transition:opacity 0.2s;}
+.cbtn{border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s, filter .2s, background-color .2s;flex-shrink:0;box-shadow:0 6px 15px rgba(0,0,0,0.3); background:rgba(255,255,255,0.08); color:#f0f0f0; border:1.5px solid rgba(255,255,255,0.15);}
+.cbtn:hover{transform:scale(1.05); filter:brightness(1.15);}
+.cbtn:active{transform:scale(0.93); filter:brightness(0.9);}
+#btn-play{width:clamp(75px,18vw,120px);height:clamp(75px,18vw,120px);font-size:clamp(32px,7vw,48px);color:#fff; border:none;}
+.text-btn{width:auto; padding:0 clamp(16px,4vw,24px); border-radius:30px; font-size:clamp(14px,3.5vw,20px); font-weight:700; height:clamp(50px,12vw,70px); letter-spacing:1px;}
+.skip-btn{width:clamp(50px,12vw,70px); height:clamp(50px,12vw,70px); font-size:clamp(16px,4vw,22px);}
+
+/* ── BOTTOM BUTTONS (Menu & Lock) ── */
+#app-menu-btn {
+  position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); z-index: 101;
+  background: rgba(20,20,20,0.85); color: white; padding: 12px 28px; border-radius: 30px;
+  border: 1px solid rgba(255,255,255,0.15); font-size: clamp(14px, 4vw, 18px); font-weight: 600;
+  cursor: pointer; backdrop-filter: blur(8px); box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+  transition: opacity 0.3s, transform 0.3s; white-space: nowrap;
+}
+#app-menu-btn:active { transform: translateX(-50%) scale(0.95); }
+
+#fixed-lock-btn {
+  position: fixed; bottom: 25px; right: 25px; width: clamp(45px, 10vw, 60px); height: clamp(45px, 10vw, 60px);
+  border-radius: 50%; background: rgba(20,20,20,0.85); color: #fff; font-size: clamp(18px, 5vw, 24px);
+  border: 1px solid rgba(255,255,255,0.15); z-index: 10000;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(8px); cursor: pointer; transition: transform 0.2s, background 0.2s, opacity 0.3s;
+  touch-action: none; user-select: none;
+}
+#fixed-lock-btn.locked { background: rgba(200,16,46,0.95); border-color: rgba(255,255,255,0.4); }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+.shake { animation: shake 0.4s; }
+
+/* Invisible overlay that blocks clicks when screen is locked */
+#lock-overlay { display: none; position: fixed; inset: 0; z-index: 9999; }
+#lock-overlay.active { display: block; }
+
+/* ── UNIFIED CONTROL PANEL (Tabs) ── */
+#bottom-edit-menu {
+  position:fixed;bottom:0;left:0;right:0;z-index:150;
+  background:rgba(12,12,12,0.98);backdrop-filter:blur(20px);
+  border-top:1px solid rgba(255,255,255,0.1);
+  padding:25px;padding-bottom:calc(25px + env(safe-area-inset-bottom));
+  height:95vh; display:flex; flex-direction:column;
+  transform:translateY(110%);transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);
+  border-radius: 20px 20px 0 0; font-family: var(--cp-font); font-size: var(--cp-font-size);
+}
+#bottom-edit-menu.open { transform:translateY(0); }
+
+.cp-header { display: flex; justify-content: center; align-items: center; margin-bottom: 24px; flex-shrink: 0;}
+.cp-header h3 { font-size: calc(var(--cp-font-size) * 1.5); text-align: center; margin: 0; font-weight:800; letter-spacing:1px; color:#fff;}
+
+.cp-tabs { display: flex; gap: 12px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 8px; flex-shrink: 0; -webkit-overflow-scrolling: touch;}
+.tab-btn { 
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); 
+  padding: 14px 24px; border-radius: 12px; cursor: pointer; font-family: var(--cp-font); font-size: var(--cp-font-size); white-space: nowrap; font-weight:600;
+}
+.tab-btn.active { background: rgba(200,16,46,0.15); border-color: #c8102e; color: #ff6680; }
+
+.cp-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding-right: 5px; display:flex; flex-direction:column; -webkit-overflow-scrolling: touch;}
+.tab-pane { display: none; flex-direction: column; gap: 24px; flex: 1; }
+.tab-pane.active { display: flex; }
+
+/* Bottom Action Buttons */
+.cp-footer { display: flex; flex-direction: column; gap: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+.cp-save-btn { background: #16a34a; color: #fff; border: none; padding: 18px; border-radius: 12px; font-size: calc(var(--cp-font-size) * 1.1); font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+.cp-discard-btn { background: #ef4444; color: #fff; border: none; padding: 18px; border-radius: 12px; font-size: calc(var(--cp-font-size) * 1.1); font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+
+/* Toggle Buttons */
+.toggle-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 14px 24px; border-radius: 10px; cursor: pointer; font-family: var(--cp-font); font-size: var(--cp-font-size); flex: 1; font-weight: 600; transition:0.2s; text-align:center;}
+.toggle-btn.active { background: #c8102e; border-color: #ff6680; }
+
+/* ── TIMERS SECTIONS ── */
+#sections-wrap{margin-bottom:0;}
+.sec-block{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;margin-bottom:20px}
+.sec-hdr{display:flex;align-items:center;gap:16px;margin-bottom:24px; flex-wrap:wrap;}
+.sec-name{background:transparent;border:none;color:#f0f0f0;font-size:calc(var(--cp-font-size) * 1.2);font-weight:700;flex:1;min-width:150px;outline:none;border-bottom:1px solid transparent;padding-bottom:4px;font-family:var(--cp-font);}
+.sec-name:focus{border-bottom:1px solid rgba(255,255,255,0.3)}
+.sec-color-dot{width:45px;height:45px;border:3px solid rgba(255,255,255,0.3);border-radius:50%;cursor:pointer;flex-shrink:0;transition:transform 0.1s;}
+.sec-color-dot:active{transform:scale(0.9);}
+.sec-del{background:none;border:none;color:rgba(255,255,255,0.3);font-size:24px;cursor:pointer;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:0.2s;}
+.sec-del:hover{color:#ef4444;background:rgba(239,68,68,0.15)}
+.btns-grid{display:flex;flex-wrap:wrap;gap:20px;align-items:center}
+
+.circ-btn{width:clamp(80px, 20vw, 120px);height:clamp(80px, 20vw, 120px);border-radius:50%;cursor:pointer;border:4px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;transition:border-color .15s,background .15s;flex-shrink:0}
+.circ-btn:hover{background:rgba(255,255,255,0.12)}
+.circ-btn.active{background:rgba(200,16,46,0.18)}
+.circ-btn.hidden-preset{opacity: 0.35; filter: grayscale(50%);}
+.circ-label{font-family:var(--btn-font);font-size:calc(var(--btn-font-size)*1.2);font-weight:600;color:var(--btn-color);text-align:center;line-height:1.2;width:95%;word-break:break-word;pointer-events:none}
+.circ-x{position:absolute;top:-6px;right:-6px;width:clamp(28px, 6vw, 34px);height:clamp(28px, 6vw, 34px);border-radius:50%;background:#1a1a1a;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:3}
+.circ-btn:hover .circ-x{display:flex}
+.circ-x:hover{background:#ef4444;color:#fff;border-color:#ef4444}
+.circ-edit-dot{position:absolute;bottom:-6px;right:-6px;width:clamp(28px, 6vw, 34px);height:clamp(28px, 6vw, 34px);border-radius:50%;background:#1a1a1a;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.5);font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:3}
+.circ-btn:hover .circ-edit-dot{display:flex}
+.circ-edit-dot:hover{background:rgba(255,255,255,0.2);color:#fff}
+.add-circ{width:clamp(80px, 20vw, 120px);height:clamp(80px, 20vw, 120px);border-radius:50%;cursor:pointer;border:3px dashed rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.35);font-size:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .15s,color .15s}
+.add-circ:hover{border-color:rgba(255,255,255,0.5);color:rgba(255,255,255,0.7)}
+
+.add-section-btn {
+  width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.06); 
+  border: 3px dashed rgba(255,255,255,0.2); color: rgba(255,255,255,0.5); font-size: 40px; 
+  display: flex; align-items: center; justify-content: center; margin: 30px auto; 
+  cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+.add-section-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.4); color:#fff; }
+
+/* ── SETTINGS MENUS (Inside Tabs) ── */
+.menu-section-title{font-size:calc(var(--cp-font-size)*0.9);letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:20px;font-weight:bold; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;}
+.menu-row{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.menu-row label{color:rgba(255,255,255,0.7);min-width:160px; font-weight:500;}
+.menu-row input[type=text],.menu-row input[type=number], .menu-row select{
+  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#f0f0f0;
+  font-size:var(--cp-font-size);padding:14px 18px;outline:none;font-family:var(--cp-font); max-width:100%;
+}
+.menu-row select option { font-size: 18px; padding: 10px; background: #111; color: #fff;}
+.menu-row input[type=color]{width:60px;height:50px;border:1px solid rgba(255,255,255,0.15);border-radius:10px;background:transparent;cursor:pointer;padding:2px}
+.menu-row input[type=range]{flex:1;min-width:140px;accent-color:#c8102e}
+.menu-row input[type=checkbox] { width: 30px; height: 30px; accent-color: #c8102e; cursor: pointer; flex-shrink: 0; }
+.menu-val{color:rgba(255,255,255,0.5);min-width:55px}
+.menu-swatches{display:flex;flex-wrap:wrap;gap:16px}
+.menu-swatch{width:50px;height:50px;border-radius:50%;border:2px solid rgba(255,255,255,0.15);cursor:pointer;flex-shrink:0;transition:border-color .15s}
+input[type=file]{display:none}
+
+/* ── PRESET EDIT MODAL ── */
+#preset-edit-modal { display: none; position:absolute; inset:0; background:rgba(10,10,10,0.95); z-index:200; padding:25px; overflow-y:auto; overflow-x:hidden; backdrop-filter:blur(10px); border-radius:20px 20px 0 0; -webkit-overflow-scrolling: touch;}
+.modal-wrap{background:transparent; padding:0; margin-bottom:20px; border:none; }
+.modal-title{font-size:calc(var(--cp-font-size)*1.3); text-transform:none; color:#fff; margin-bottom:24px; font-weight:800; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;}
+.mrow{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.mrow label{color:rgba(255,255,255,0.75);min-width:140px; font-weight:500;}
+.mrow input[type=number]{
+  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#f0f0f0;
+  font-size:var(--cp-font-size);padding:14px;text-align:center;outline:none;font-family:var(--cp-font);
+  transition: opacity 0.2s; width:80px;
+}
+.mrow input[type=checkbox] { width: 30px; height: 30px; accent-color: #c8102e; cursor: pointer; flex-shrink: 0; }
+.input-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Disabled Inputs Styling */
+.mrow input:disabled { opacity: 0.3; cursor: not-allowed; background: rgba(255,255,255,0.02); }
+.mrow label { transition: opacity 0.2s; }
+
+/* Layout adjustments for long text boxes */
+.mrow-col { display:flex; flex-direction:column; gap:16px; margin-top:24px; }
+.mrow-col label { display:flex; align-items:center; gap:14px; width:100%; color:rgba(255,255,255,0.8); font-weight:500; font-size: calc(var(--cp-font-size) * 0.9); line-height: 1.4; }
+
+.preview-tag{color:#ff6680;letter-spacing:.5px;font-weight:600;margin-top:16px;display:block;background:rgba(200,16,46,0.1);padding:16px;border-radius:12px;border:1px solid rgba(200,16,46,0.3); text-align:center;}
+.sbtn{background:#c8102e;border:none;color:#fff;border-radius:12px;padding:16px 32px;font-size:var(--cp-font-size);font-family:var(--cp-font);cursor:pointer;margin-right:14px;font-weight:800; box-shadow:0 4px 10px rgba(0,0,0,0.3); margin-bottom:10px;}
+.cbtn2{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#f0f0f0;border-radius:12px;padding:16px 32px;font-size:var(--cp-font-size);font-family:var(--cp-font);cursor:pointer;margin-right:14px;font-weight:600; margin-bottom:10px;}
+.unit{color:rgba(255,255,255,0.4);font-size:calc(var(--cp-font-size)*0.9); transition: opacity 0.2s;}
+
+/* ── RESPONSIVE MEDIA QUERIES ── */
+@media (max-width: 600px) {
+    #bottom-edit-menu, #preset-edit-modal { padding: 15px; }
+    .menu-row label, .mrow label { min-width: 100%; margin-bottom: 5px; }
+    .input-group { width: 100%; }
+    .sbtn, .cbtn2 { width: 100%; margin-right: 0; }
+    .sec-block { padding: 15px; }
+    .tab-btn { padding: 12px 16px; font-size: calc(var(--cp-font-size) * 0.85); }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="wp"></div>
+  <div id="ov"></div>
+
+  <div id="top-clock"></div>
+
+  <div id="lock-overlay"></div>
+
+  <div id="ct">
+    <div id="hero">
+      <div id="timer-ring-wrapper">
+        <svg class="main-timer-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+          <circle class="bg-ring" cx="50" cy="50" r="47"></circle>
+          <circle id="main-prog-circle" class="prog-ring" cx="50" cy="50" r="47" stroke-dasharray="295.3" stroke-dashoffset="0"></circle>
+        </svg>
+
+        <div id="t-display" style="color:#ffffff">
+            <span id="t-minsec">00:00</span><span id="t-ms" style="display:none">.00</span>
+        </div>
+        
+        <div id="round-counter"></div>
+        <div id="phase-pill" style="color:#ff6680;border-color:rgba(200,16,46,0.4);background:rgba(200,16,46,0.15)">Select a timer</div>
+      </div>
+
+      <div id="home-preset-ring"></div>
+
+      <div id="ctrls" style="display:none;">
+        <button class="cbtn text-btn" id="btn-home" onclick="goHome()" title="Home">Home</button>
+        <button class="cbtn skip-btn" id="btn-prev" onclick="prevPhase()">&#9664;&#9664;</button>
+        <button class="cbtn" id="btn-play" style="background:#c8102e" onclick="togglePlay()">&#9654;</button>
+        <button class="cbtn skip-btn" id="btn-skip" onclick="skipPhase()">&#9654;&#9654;</button>
+        <button class="cbtn text-btn" id="btn-stop" onclick="stopTimer()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <button id="app-menu-btn" onclick="openEditMenu()">⚙️ Control Panel</button>
+  <button id="fixed-lock-btn" onclick="toggleLock()">🔓</button>
+
+  <div id="bottom-edit-menu">
+    <div class="cp-header">
+        <h3>Control Panel</h3>
+    </div>
+
+    <div class="cp-tabs">
+        <button class="tab-btn active" onclick="switchTab('timers')">Timers</button>
+        <button class="tab-btn" onclick="switchTab('voice')">Voice</button>
+        <button class="tab-btn" onclick="switchTab('appearance')">Appearance</button>
+        <button class="tab-btn" onclick="switchTab('wallpaper')">Wallpaper</button>
+    </div>
+
+    <div class="cp-content">
+        <div id="tab-timers" class="tab-pane active">
+            <div id="sections-wrap"></div>
+            <button class="add-section-btn" onclick="addSection()">+</button>
+        </div>
+
+        <div id="tab-voice" class="tab-pane">
+            <div class="menu-section-title">Voice Announcements</div>
+            <div class="menu-row">
+                <label>Enable Voice</label>
+                <input type="checkbox" id="v-enable" onchange="timerCfg.voiceOn=this.checked; saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Voice Profile</label>
+                <select id="v-profile" onchange="timerCfg.voiceURI=this.value; pickVoice(); saveLocal();" style="flex:1; max-width:350px;"></select>
+            </div>
+            <div class="menu-row">
+                <label>Volume</label>
+                <input type="range" id="v-vol" min="0" max="1" step="0.05" oninput="timerCfg.voiceVol=parseFloat(this.value); saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Speed</label>
+                <input type="range" id="v-rate" min="0.5" max="2" step="0.1" oninput="timerCfg.voiceRate=parseFloat(this.value); saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Pitch</label>
+                <input type="range" id="v-pitch" min="0" max="2" step="0.1" oninput="timerCfg.voicePitch=parseFloat(this.value); saveLocal();">
+            </div>
+            <div class="menu-row" style="margin-top:10px;">
+                <button class="sbtn" onclick="testVoice()">Test Voice settings</button>
+                <button class="cbtn2" onclick="resetVoiceSettings()">Default Settings</button>
+            </div>
+        </div>
+
+        <div id="tab-appearance" class="tab-pane">
+            <div class="menu-section-title">Main Timer Display</div>
+            <div class="menu-row">
+                <label>Timer Font</label>
+                <select id="mn-tfont" onchange="timerCfg.tFont=this.value; applyTimerStyle(); saveLocal();" style="flex:1;">
+                    <option value="system-ui, sans-serif" style="font-family: system-ui, sans-serif;">System UI</option>
+                    <option value="'Courier New', monospace" style="font-family: 'Courier New', monospace;">Courier New</option>
+                    <option value="Impact, sans-serif" style="font-family: Impact, sans-serif;">Impact</option>
+                    <option value="Arial, sans-serif" style="font-family: Arial, sans-serif;">Arial</option>
+                </select>
+            </div>
+            <div class="menu-row">
+                <label>Main timer size</label>
+                <input type="range" id="mn-fs" min="60" max="240" step="1" oninput="timerCfg.fontSize=parseInt(this.value);applyTimerStyle();saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Phase Text Size</label>
+                <input type="range" id="mn-pill-size" min="12" max="36" step="1" oninput="timerCfg.pillSize=parseInt(this.value);applyTimerStyle();saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Round Counter Size</label>
+                <input type="range" id="mn-rc-size" min="16" max="48" step="1" oninput="timerCfg.rcSize=parseInt(this.value);applyTimerStyle();saveLocal();">
+            </div>
+            
+            <div class="menu-row">
+                <label>Timer colour</label>
+                <input type="color" id="mn-col" oninput="timerCfg.color=this.value;applyTimerStyle();saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Rest colour</label>
+                <input type="color" id="mn-rc" oninput="timerCfg.restColor=this.value;applyTimerStyle();saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Warn colour</label>
+                <input type="color" id="mn-wc" oninput="timerCfg.warnColor=this.value;applyTimerStyle();saveLocal();">
+            </div>
+
+            <div class="menu-section-title" style="margin-top:20px">Top System Clock</div>
+            <div class="menu-row">
+                <label>Show System Clock</label>
+                <input type="checkbox" id="mn-clock" onchange="timerCfg.showClock=this.checked;applyTimerStyle();saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Clock Format</label>
+                <div style="display:flex; gap:10px; flex:1; max-width:250px;">
+                    <button id="btn-12h" class="toggle-btn" onclick="setClockFormat(true)">12H</button>
+                    <button id="btn-24h" class="toggle-btn" onclick="setClockFormat(false)">24H</button>
+                </div>
+            </div>
+            <div class="menu-row">
+                <label>Clock Size</label>
+                <input type="range" id="mn-clock-size" min="14" max="56" step="1" oninput="timerCfg.clockSize=parseInt(this.value);applyTimerStyle();saveLocal();">
+            </div>
+
+            <div class="menu-section-title" style="margin-top:20px">Home Preset Buttons</div>
+            <div class="menu-row">
+                <label>Button size</label>
+                <input type="range" id="mn-bs" min="60" max="180" step="1" oninput="timerCfg.presetBtnSize=parseInt(this.value);applyTimerStyle();saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Button font</label>
+                <select id="mn-bf" onchange="timerCfg.presetBtnFont=this.value;applyTimerStyle();saveLocal();" style="flex:1;">
+                    <option value="system-ui, sans-serif" style="font-family: system-ui, sans-serif;">System UI</option>
+                    <option value="Arial, sans-serif" style="font-family: Arial, sans-serif;">Arial</option>
+                    <option value="'Courier New', monospace" style="font-family: 'Courier New', monospace;">Courier New</option>
+                    <option value="Impact, sans-serif" style="font-family: Impact, sans-serif;">Impact</option>
+                    <option value="Georgia, serif" style="font-family: Georgia, serif;">Georgia</option>
+                </select>
+            </div>
+            <div class="menu-row">
+                <label>Button font size</label>
+                <input type="range" id="mn-bfs" min="6" max="24" step="1" oninput="timerCfg.presetBtnFontSize=parseInt(this.value);applyTimerStyle();saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Button text</label>
+                <input type="color" id="mn-bc" oninput="timerCfg.presetBtnColor=this.value;applyTimerStyle();saveLocal();">
+            </div>
+
+            <div class="menu-section-title" style="margin-top:20px">Control Panel Text</div>
+            <div class="menu-row">
+                <label>Panel font size</label>
+                <input type="range" id="mn-cpfs" min="14" max="32" step="1" oninput="timerCfg.cpFontSize=parseInt(this.value);applyTimerStyle();saveLocal();">
+            </div>
+            <div class="menu-row">
+                <label>Panel font</label>
+                <select id="mn-cpf" onchange="timerCfg.cpFont=this.value;applyTimerStyle();saveLocal();" style="flex:1;">
+                    <option value="system-ui, sans-serif" style="font-family: system-ui, sans-serif;">System UI</option>
+                    <option value="Arial, sans-serif" style="font-family: Arial, sans-serif;">Arial</option>
+                    <option value="'Courier New', monospace" style="font-family: 'Courier New', monospace;">Courier New</option>
+                    <option value="Georgia, serif" style="font-family: Georgia, serif;">Georgia</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="tab-wallpaper" class="tab-pane">
+            <div class="menu-section-title">Background</div>
+            <div class="menu-row">
+                <button class="sbtn" onclick="document.getElementById('wp-file').click()" style="margin-right:0">&#128247; Choose image</button>
+                <button class="cbtn2" onclick="clearWP()">Remove Background</button>
+            </div>
+            <div class="menu-row">
+                <label>Solid background</label>
+                <input type="color" id="mn-bg" oninput="timerCfg.bgColor=this.value;applyBgColor();saveLocal();">
+            </div>
+            <div class="menu-row" id="wp-scale-row" style="display:none">
+                <label>Image zoom</label>
+                <input type="range" id="wp-scale" min="50" max="200" step="5" oninput="applyWpScale(this.value);saveLocal();">
+                <span class="menu-val" id="wp-scale-v">100%</span>
+            </div>
+            <div class="menu-row" id="wp-posX-row" style="display:none">
+                <label>Horizontal position</label>
+                <input type="range" id="wp-posX" min="0" max="100" step="1" oninput="applyWpPos();saveLocal();">
+                <span class="menu-val" id="wp-posX-v">50%</span>
+            </div>
+            <div class="menu-row" id="wp-posY-row" style="display:none">
+                <label>Vertical position</label>
+                <input type="range" id="wp-posY" min="0" max="100" step="1" oninput="applyWpPos();saveLocal();">
+                <span class="menu-val" id="wp-posY-v">50%</span>
+            </div>
+            
+            <div class="menu-section-title" style="margin-top:20px">Screen Overlay Effect</div>
+            <div class="menu-row">
+                <label>Darken screen</label>
+                <input type="range" id="mn-ov" min="0" max="95" step="1" oninput="timerCfg.overlayOpacity=parseInt(this.value);document.getElementById('mn-ov-v').textContent=this.value+'%';applyTimerStyle();saveLocal();">
+                <span class="menu-val" id="mn-ov-v">72%</span>
+            </div>
+            <div class="menu-row">
+                <label>Background blur</label>
+                <input type="range" id="mn-blur" min="0" max="20" step="1" oninput="timerCfg.bgBlur=parseInt(this.value);document.getElementById('mn-blur-v').textContent=this.value+'px';applyTimerStyle();saveLocal();">
+                <span class="menu-val" id="mn-blur-v">0px</span>
+            </div>
+        </div>
+
+        <div class="cp-footer">
+            <button class="cp-save-btn" onclick="saveAndExit()">Save and exit</button>
+            <button class="cp-discard-btn" onclick="exitWithoutSaving()">Exit and do not save</button>
+        </div>
+    </div>
+    
+    <div id="preset-edit-modal"></div>
+  </div>
+
+  <input type="file" id="wp-file" accept="image/*" onchange="loadWP(event)">
+</div>
+
+<script>
+var ACC='#c8102e', ACC_LIGHT='#ff6680';
+var PRESET_COLORS = ['#c8102e', '#1d9e75', '#2563eb', '#d97706', '#9333ea', '#0891b2', '#db2777', '#475569'];
+
+var timerCfg={
+  fontSize:110, color:'#ffffff', restColor:'#f59e0b', warnColor:'#ef4444', bgColor:'#0a0a0a', overlayOpacity:72,
+  presetBtnSize:85, presetBtnFont:'system-ui, sans-serif', presetBtnFontSize:11, presetBtnColor:'#ffffff',
+  cpFont:'system-ui, sans-serif', cpFontSize:20, showClock: false, clock12h: false, clockSize: 24,
+  voiceOn: true, voiceVol: 1.0, voiceRate: 1.0, voicePitch: 1.0, voiceURI: '',
+  tFont: 'system-ui, sans-serif', bgBlur: 0, pillSize: 18, rcSize: 32
+};
+var wpScale=100, wpPosX=50, wpPosY=50, wpLoaded=false;
+
+var sections=[
+  {id:1,name:'Rounds',color:'#c8102e',presets:[
+    {id:1,rounds:5,workMin:5,workSec:0,restMin:1,restSec:0,getReady:10,getReadyBeep:10,warnBeepSec:5,warnFlashSec:10,announceMin:true,announce30s:true,hidden:false,showMs:false,disableRest:false,disableGetReady:false},
+    {id:2,rounds:6,workMin:3,workSec:30,restMin:0,restSec:30,getReady:10,getReadyBeep:10,warnBeepSec:5,warnFlashSec:10,announceMin:false,announce30s:true,hidden:false,showMs:false,disableRest:false,disableGetReady:false}
+  ]},
+  {id:2,name:'Wrestling',color:'#1d9e75',presets:[
+    {id:3,rounds:2,workMin:2,workSec:0,restMin:0,restSec:30,getReady:10,getReadyBeep:10,warnBeepSec:5,warnFlashSec:10,announceMin:true,announce30s:false,hidden:false,showMs:false,disableRest:false,disableGetReady:false}
+  ]}
+];
+var nsid=10, npid=20;
+var activePid=null, editPid=null;
+var autoHomeTimeout = null;
+
+// HIGH PRECISION TIMER ENGINE
+var reqFrame = null;
+var paused = true; 
+var targetTime = 0; 
+var timeLeftMs = 0; 
+var totalTimeMs = 0; 
+var lastSecLeft = -1;
+var curRound = 0, isRest = false, isReady = false, curPreset = null;
+
+var locked=false;
+var fixedLockBtn = document.getElementById('fixed-lock-btn');
+var lockOverlay = document.getElementById('lock-overlay');
+
+// Snapshot system for Discarding changes
+let snapshotSections = null;
+let snapshotCfg = null;
+let snapshotWp = null;
+
+// ── LOCAL STORAGE ENGINE ────────────────────────────────────
+function saveLocal() {
+  try {
+    localStorage.setItem('mbt_sections', JSON.stringify(sections));
+    localStorage.setItem('mbt_cfg', JSON.stringify(timerCfg));
+    var wp = document.getElementById('wp').style.backgroundImage;
+    if(wp && wp !== 'none') localStorage.setItem('mbt_wp', wp);
+    else localStorage.removeItem('mbt_wp');
+  } catch(e) {}
+}
+
+function loadLocal() {
+  try {
+    var s = localStorage.getItem('mbt_sections');
+    if(s) {
+      sections = JSON.parse(s);
+      sections.forEach(sec => sec.presets.forEach(p => {
+        if(p.getReady === undefined) p.getReady = 10;
+        if(p.getReadyBeep === undefined) p.getReadyBeep = p.getReady;
+        if(p.warnBeepSec === undefined) p.warnBeepSec = p.warnSec !== undefined ? p.warnSec : 5;
+        if(p.warnFlashSec === undefined) p.warnFlashSec = 10;
+        if(p.announceMin === undefined) p.announceMin = true;
+        if(p.announce30s === undefined) p.announce30s = true;
+        if(p.hidden === undefined) p.hidden = false;
+        if(p.showMs === undefined) p.showMs = false;
+        if(p.disableRest === undefined) p.disableRest = false;
+        if(p.disableGetReady === undefined) p.disableGetReady = false;
+      }));
+    }
+    var c = localStorage.getItem('mbt_cfg');
+    if(c) timerCfg = Object.assign(timerCfg, JSON.parse(c));
+    var wp = localStorage.getItem('mbt_wp');
+    if(wp) {
+      wpLoaded = true;
+      document.getElementById('wp').style.backgroundImage = wp;
+      document.getElementById('wp').style.backgroundSize = 'cover';
+      document.getElementById('wp').style.backgroundPosition = '50% 50%';
+    }
+  } catch(e) {}
+}
+
+// ── NAMING CONVENTION ───────────────────────────────────────
+function formatTimeStr(m, s) {
+  var str = [];
+  if (m > 0) str.push(m + 'M');
+  if (s > 0) str.push(s + 'sec');
+  return str.length > 0 ? str.join(' ') : '';
+}
+
+function getPresetFullName(p, sec) {
+  var wStr = formatTimeStr(p.workMin, p.workSec);
+  var rStr = (p.disableRest || (p.restMin === 0 && p.restSec === 0)) ? '' : formatTimeStr(p.restMin, p.restSec);
+  var sName = sec ? sec.name.replace(/Wrestling/gi, 'Wres') : '';
+  var out = sName + ', ' + p.rounds + 'R ' + wStr;
+  if (rStr !== '') out += ', Rest ' + rStr;
+  return out;
+}
+
+function buildTimeSpeechStr(m, s) {
+  var speech = "";
+  if (m > 0) speech += m + (m === 1 ? " minute " : " minutes ");
+  if (s > 0) {
+      if (m > 0) speech += "and ";
+      speech += s + (s === 1 ? " second" : " seconds");
+  }
+  return speech.trim();
+}
+
+// ── AUDIO SYSTEM ────────────────────────────────────────────
+var AudioCtx = window.AudioContext || window.webkitAudioContext;
+var audioCtx = null;
+
+function getAudioCtx(){
+  if(!audioCtx) audioCtx = new AudioCtx();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playBeep(freq, dur, vol, type='square'){
+  try{
+    var ctx = getAudioCtx();
+    var osc = ctx.createOscillator();
+    var g = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.type = type; osc.frequency.value = freq;
+    g.gain.setValueAtTime(vol, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+dur);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+dur+0.05);
+  }catch(e){}
+}
+
+function startOfRoundBeep() { playBeep(1200, 0.6, 1.0, 'square'); }
+
+function endOfRoundBeep() {
+  try {
+    var ctx = getAudioCtx(); var now = ctx.currentTime;
+    function b(time, f, d) {
+      var osc = ctx.createOscillator(); var g = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.type = 'square'; osc.frequency.value = f;
+      g.gain.setValueAtTime(0.5, now+time);
+      g.gain.exponentialRampToValueAtTime(0.001, now+time+d);
+      osc.start(now+time); osc.stop(now+time+d+0.05);
+    }
+    b(0, 880, 0.15); b(0.25, 880, 0.15); b(0.5, 1046, 3.0); 
+  } catch(e){}
+}
+
+var synth=window.speechSynthesis;
+var chosenVoice=null;
+function pickVoice(){
+  var vs = synth.getVoices(); if(!vs.length) return;
+  var select = document.getElementById('v-profile');
+  if (select && select.options.length === 0) {
+      vs.forEach(v => {
+          var opt = document.createElement('option');
+          opt.value = v.voiceURI;
+          opt.textContent = v.name + ' (' + v.lang + ')';
+          select.appendChild(opt);
+      });
+      if(timerCfg.voiceURI) select.value = timerCfg.voiceURI;
+  }
+  if (timerCfg.voiceURI) {
+      chosenVoice = vs.find(v => v.voiceURI === timerCfg.voiceURI) || vs[0];
+  } else {
+      var en = vs.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+      chosenVoice = en[0] || vs[0];
+  }
+}
+if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=pickVoice;
+setTimeout(pickVoice,400);
+
+function speak(txt){
+  if(!timerCfg.voiceOn || !synth) return;
+  synth.cancel();
+  var u = new SpeechSynthesisUtterance(txt);
+  if(chosenVoice) u.voice = chosenVoice;
+  u.volume = timerCfg.voiceVol;
+  u.rate = timerCfg.voiceRate;
+  u.pitch = timerCfg.voicePitch;
+  synth.speak(u);
+}
+
+function testVoice() { speak("This is a test of your current voice settings."); }
+function resetVoiceSettings() {
+    timerCfg.voiceOn = true;
+    timerCfg.voiceVol = 1.0;
+    timerCfg.voiceRate = 1.0;
+    timerCfg.voicePitch = 1.0;
+    syncSettingsUI();
+    saveLocal();
+}
+
+// ── UI SYNCHRONIZATION & TABS ───────────────────────────────
+function syncUIState() {
+  var hasPreset = activePid !== null;
+  document.getElementById('home-preset-ring').style.display = hasPreset ? 'none' : 'flex';
+  document.getElementById('ctrls').style.display = hasPreset ? 'flex' : 'none';
+  var menuBtn = document.getElementById('app-menu-btn');
+  if(!paused) {
+      menuBtn.style.opacity = '0'; menuBtn.style.pointerEvents = 'none';
+  } else {
+      menuBtn.style.opacity = locked ? '0.3' : '1'; 
+      menuBtn.style.pointerEvents = locked ? 'none' : 'auto';
+  }
+}
+
+function openEditMenu() {
+    if (locked) return; // Prevent opening if locked
+    
+    // Create restore snapshot
+    snapshotSections = JSON.stringify(sections);
+    snapshotCfg = JSON.stringify(timerCfg);
+    snapshotWp = document.getElementById('wp').style.backgroundImage;
+
+    document.getElementById('bottom-edit-menu').classList.add('open');
+    fixedLockBtn.style.display = 'none'; // Hide lock button
+}
+
+function saveAndExit() {
+    // Silently remove empty groups
+    sections = sections.filter(s => s.presets && s.presets.length > 0);
+    saveLocal();
+    render();
+    
+    document.getElementById('bottom-edit-menu').classList.remove('open');
+    fixedLockBtn.style.display = 'flex'; // Restore lock button
+}
+
+function exitWithoutSaving() {
+    // Restore from snapshot
+    if (snapshotSections) sections = JSON.parse(snapshotSections);
+    if (snapshotCfg) timerCfg = JSON.parse(snapshotCfg);
+    document.getElementById('wp').style.backgroundImage = snapshotWp;
+    
+    saveLocal();
+    syncSettingsUI();
+    render();
+    applyTimerStyle();
+    applyBgColor();
+
+    document.getElementById('bottom-edit-menu').classList.remove('open');
+    fixedLockBtn.style.display = 'flex'; // Restore lock button
+}
+
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-pane').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tabId).style.display = 'flex';
+    var btn = document.querySelector('.tab-btn[onclick="switchTab(\'' + tabId + '\')"]');
+    if(btn) btn.classList.add('active');
+}
+
+function setClockFormat(is12h) {
+    timerCfg.clock12h = is12h;
+    document.getElementById('btn-12h').classList.toggle('active', is12h);
+    document.getElementById('btn-24h').classList.toggle('active', !is12h);
+    saveLocal();
+}
+
+function syncSettingsUI() {
+    // Appearance
+    document.getElementById('mn-tfont').value = timerCfg.tFont;
+    document.getElementById('mn-fs').value = timerCfg.fontSize;
+    document.getElementById('mn-pill-size').value = timerCfg.pillSize;
+    document.getElementById('mn-rc-size').value = timerCfg.rcSize;
+    document.getElementById('mn-col').value = timerCfg.color;
+    document.getElementById('mn-rc').value = timerCfg.restColor;
+    document.getElementById('mn-wc').value = timerCfg.warnColor;
+    document.getElementById('mn-clock').checked = timerCfg.showClock;
+    
+    document.getElementById('btn-12h').classList.toggle('active', timerCfg.clock12h);
+    document.getElementById('btn-24h').classList.toggle('active', !timerCfg.clock12h);
+    document.getElementById('mn-clock-size').value = timerCfg.clockSize || 24;
+    
+    document.getElementById('mn-bs').value = timerCfg.presetBtnSize;
+    document.getElementById('mn-bf').value = timerCfg.presetBtnFont;
+    document.getElementById('mn-bfs').value = timerCfg.presetBtnFontSize;
+    document.getElementById('mn-bc').value = timerCfg.presetBtnColor;
+    
+    document.getElementById('mn-cpfs').value = timerCfg.cpFontSize;
+    document.getElementById('mn-cpf').value = timerCfg.cpFont;
+
+    // Wallpaper
+    document.getElementById('mn-bg').value = timerCfg.bgColor;
+    document.getElementById('mn-ov').value = timerCfg.overlayOpacity;
+    document.getElementById('mn-ov-v').textContent = timerCfg.overlayOpacity + '%';
+    document.getElementById('mn-blur').value = timerCfg.bgBlur;
+    document.getElementById('mn-blur-v').textContent = timerCfg.bgBlur + 'px';
+    if(hasWp()) {
+        document.getElementById('wp-scale-row').style.display='flex';
+        document.getElementById('wp-posX-row').style.display='flex';
+        document.getElementById('wp-posY-row').style.display='flex';
+        document.getElementById('wp-scale').value = wpScale;
+        document.getElementById('wp-posX').value = wpPosX;
+        document.getElementById('wp-posY').value = wpPosY;
+    } else {
+        document.getElementById('wp-scale-row').style.display='none';
+        document.getElementById('wp-posX-row').style.display='none';
+        document.getElementById('wp-posY-row').style.display='none';
+    }
+
+    // Voice
+    document.getElementById('v-enable').checked = timerCfg.voiceOn;
+    document.getElementById('v-vol').value = timerCfg.voiceVol;
+    document.getElementById('v-rate').value = timerCfg.voiceRate;
+    document.getElementById('v-pitch').value = timerCfg.voicePitch;
+}
+
+// ── TOP CLOCK ──
+setInterval(function() {
+    var c = document.getElementById('top-clock');
+    if (!timerCfg.showClock) { c.style.display = 'none'; return; }
+    c.style.display = 'block';
+    c.textContent = new Date().toLocaleTimeString('en-GB', { 
+        timeZone: 'Europe/London', hour12: timerCfg.clock12h, 
+        hour: '2-digit', minute:'2-digit', second:'2-digit'
+    });
+}, 1000);
+
+// ── WALLPAPER SCALE ─────────────────────────────────────────
+function applyWpScale(val){
+  wpScale=parseInt(val); document.getElementById('wp-scale-v').textContent=val+'%';
+  document.getElementById('wp').style.backgroundSize= (wpScale===100 ? 'cover' : wpScale+'%');
+}
+function applyWpPos(){
+  wpPosX=parseInt(document.getElementById('wp-posX').value);
+  wpPosY=parseInt(document.getElementById('wp-posY').value);
+  document.getElementById('wp-posX-v').textContent=wpPosX+'%';
+  document.getElementById('wp-posY-v').textContent=wpPosY+'%';
+  document.getElementById('wp').style.backgroundPosition=wpPosX+'% '+wpPosY+'%';
+}
+function applyBgColor(){
+  if(!hasWp()) document.getElementById('app').style.background=timerCfg.bgColor;
+  applyTimerStyle();
+}
+function hasWp(){ return !!document.getElementById('wp').style.backgroundImage && document.getElementById('wp').style.backgroundImage !== 'none'; }
+
+// ── CYCLE GROUP COLOR ──
+function cycleSectionColor(sid) {
+    var sec = sections.find(x => x.id === sid);
+    if(!sec) return;
+    var idx = PRESET_COLORS.indexOf(sec.color);
+    sec.color = PRESET_COLORS[(idx + 1) % PRESET_COLORS.length];
+    saveLocal(); render();
+}
+
+// ── SINGLE PRESS LOCK SYSTEM ────────────────────────────────
+function toggleLock() {
+    locked = !locked;
+    fixedLockBtn.innerHTML = locked ? '🔒' : '🔓';
+    fixedLockBtn.classList.toggle('locked', locked);
+    lockOverlay.classList.toggle('active', locked);
+    
+    // Disable controls
+    document.getElementById('ctrls').style.pointerEvents = locked ? 'none' : 'auto';
+    document.getElementById('ctrls').style.opacity = locked ? '0.3' : '1';
+    
+    document.getElementById('app-menu-btn').style.pointerEvents = locked ? 'none' : 'auto';
+    document.getElementById('app-menu-btn').style.opacity = locked ? '0.3' : '1';
+    
+    if(!locked) playBeep(660, 0.1, 0.2, 'sine');
+    else playBeep(440, 0.1, 0.2, 'square');
+}
+
+function alertLock() {
+    fixedLockBtn.classList.remove('shake');
+    void fixedLockBtn.offsetWidth; 
+    fixedLockBtn.classList.add('shake');
+}
+
+lockOverlay.addEventListener('pointerdown', alertLock);
+
+// ── TIMER STYLE & SVG CIRCLE ────────────────────────────────
+function applyTimerStyle(){
+  var d=document.getElementById('t-display');
+  d.style.color=isRest?timerCfg.restColor:timerCfg.color;
+  
+  // Fluid font scaling to prevent overflow on mobile, but respect user choice on big screens
+  d.style.fontSize = 'min(' + timerCfg.fontSize + 'px, 26vw, 24vh)';
+  
+  document.getElementById('ov').style.background='rgba(0,0,0,'+timerCfg.overlayOpacity/100+')';
+  if(!hasWp()) document.getElementById('app').style.background=timerCfg.bgColor;
+  
+  // Show milliseconds ONLY if there is an active preset AND that preset has showMs set to true
+  var showMilli = activePid && curPreset ? curPreset.showMs : false;
+  document.getElementById('t-ms').style.display = showMilli ? 'inline' : 'none';
+  
+  document.getElementById('top-clock').style.fontSize = (timerCfg.clockSize || 24) + 'px';
+
+  // CSS Variables binding
+  var root = document.documentElement;
+  root.style.setProperty('--btn-size', timerCfg.presetBtnSize + 'px');
+  root.style.setProperty('--btn-font', timerCfg.presetBtnFont);
+  root.style.setProperty('--btn-font-size', timerCfg.presetBtnFontSize + 'px');
+  root.style.setProperty('--btn-color', timerCfg.presetBtnColor);
+  root.style.setProperty('--cp-font', timerCfg.cpFont);
+  root.style.setProperty('--cp-font-size', timerCfg.cpFontSize + 'px');
+  
+  root.style.setProperty('--t-font', timerCfg.tFont);
+  root.style.setProperty('--ov-blur', timerCfg.bgBlur + 'px');
+  root.style.setProperty('--pill-size', timerCfg.pillSize + 'px');
+  root.style.setProperty('--rc-size', timerCfg.rcSize + 'px');
+}
+
+function updateMainCircle(pct, colorOverride) {
+  var circle = document.getElementById('main-prog-circle');
+  if(!circle) return;
+  var circ = 2 * Math.PI * 47; 
+  var offset = circ - (pct / 100) * circ;
+  circle.style.strokeDashoffset = offset;
+  
+  if(colorOverride) circle.style.stroke = colorOverride;
+  else if(isRest) circle.style.stroke = timerCfg.restColor || '#f59e0b';
+  else if(isReady) circle.style.stroke = ACC_LIGHT;
+  else circle.style.stroke = findSectionColor(activePid) || ACC;
+}
+
+// ── TIMER ENGINE ────────────────────────────────────────────
+function formatMsDisplay(ms) {
+    if(ms < 0) ms = 0;
+    var totalSec = Math.ceil(ms / 1000);
+    var displaySec = Math.floor(ms / 1000); 
+    var remMs = ms % 1000;
+    var m = Math.floor(displaySec / 60);
+    var s = displaySec % 60;
+    
+    var mStr = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    var msStr = '.' + String(Math.floor(remMs/10)).padStart(2,'0');
+    return { main: mStr, ms: msStr, secLeft: totalSec };
+}
+
+function renderTimerText(phaseOverride) {
+    var phase = phaseOverride;
+    if(!phase) phase = isReady ? 'ready' : (isRest ? 'rest' : 'work');
+    
+    var d = document.getElementById('t-display');
+    var tData = formatMsDisplay(timeLeftMs);
+    document.getElementById('t-minsec').textContent = tData.main;
+    document.getElementById('t-ms').textContent = tData.ms;
+
+    if(phase === 'warn') d.style.color = timerCfg.warnColor;
+    else if(phase === 'rest') d.style.color = timerCfg.restColor;
+    else if(phase === 'ready') d.style.color = ACC_LIGHT;
+    else d.style.color = timerCfg.color;
+    
+    var pct=totalTimeMs>0?Math.max(0, Math.min(100, (timeLeftMs/totalTimeMs)*100)):0;
+    updateMainCircle(pct);
+}
+
+function tick(){
+  if (paused) return;
+  var now = Date.now();
+  timeLeftMs = targetTime - now;
+
+  if (timeLeftMs <= 0) {
+    timeLeftMs = 0;
+    renderTimerText();
+    nextPhase();
+    return;
+  }
+
+  var warnFlashLimit = curPreset.warnFlashSec !== undefined ? curPreset.warnFlashSec : 10;
+  var warnBeepLimit  = curPreset.warnBeepSec !== undefined ? curPreset.warnBeepSec : 5;
+  var grBeepLimit    = curPreset.getReadyBeep !== undefined ? curPreset.getReadyBeep : (curPreset.getReady || 10);
+  
+  var d = document.getElementById('t-display');
+  var secLeft = Math.ceil(timeLeftMs / 1000);
+
+  // Flashing
+  if (!isReady && secLeft <= warnFlashLimit && secLeft > 0) d.classList.add('flash-text');
+  else d.classList.remove('flash-text');
+
+  // Logic per second tick
+  if (secLeft !== lastSecLeft) {
+      if (isReady && secLeft <= grBeepLimit && secLeft > 0) {
+          playBeep(880, 0.1, 0.3);
+      } else if (!isReady && secLeft <= warnBeepLimit && secLeft > 0) {
+          playBeep(880, 0.1, 0.3); 
+      }
+
+      // Voice announcements
+      if (!isReady && !isRest && secLeft > 0) {
+        if (curPreset.announceMin && secLeft % 60 === 0) {
+          var mLeft = secLeft / 60;
+          speak(mLeft + (mLeft === 1 ? " minute " : " minutes ") + "remaining");
+        } else if (curPreset.announce30s && secLeft % 60 === 30) {
+          var mLeft = Math.floor(secLeft / 60);
+          if (mLeft > 0) speak(mLeft + (mLeft === 1 ? " minute and " : " minutes and ") + "30 seconds remaining");
+          else speak("30 seconds remaining");
+        }
+      }
+      lastSecLeft = secLeft;
+  }
+
+  if (secLeft <= warnBeepLimit && secLeft > 0 && !isReady) {
+      renderTimerText('warn');
+  } else {
+      renderTimerText();
+  }
+
+  reqFrame = requestAnimationFrame(tick);
+}
+
+function loadPreset(id){
+  clearTimeout(autoHomeTimeout);
+  var p=findPreset(id); if(!p)return;
+  var s=findSectionForPreset(id);
+  stopTimer(); activePid=id; curPreset=p; curRound=0; isRest=false; isReady=false;
+  var w=(p.workMin||0)*60 + (p.workSec||0);
+  timeLeftMs=w*1000; totalTimeMs=w*1000;
+  
+  applyTimerStyle(); // Refresh style for MS toggle override
+  renderTimerText('work');
+  setPhasePill(getPresetFullName(p, s), 'work');
+  updateMainCircle(100);
+  playBeep(660, 0.1, 0.2, 'sine');
+  syncUIState();
+  render();
+}
+
+function findPreset(id){for(var s of sections)for(var p of s.presets)if(p.id===id)return p;return null;}
+function findSectionColor(pid){for(var s of sections)for(var p of s.presets)if(p.id===pid)return s.color;return ACC;}
+function findSectionForPreset(pid){for(var s of sections)for(var p of s.presets)if(p.id===pid)return s;return null;}
+
+function setPhasePill(text,phase){
+  var pill=document.getElementById('phase-pill');
+  pill.textContent=text;
+  if(phase==='rest'){pill.style.color='#f59e0b';pill.style.borderColor='rgba(245,158,11,0.4)';pill.style.background='rgba(245,158,11,0.12)';}
+  else if(phase==='done'){pill.style.color='#4ade80';pill.style.borderColor='rgba(74,222,128,0.3)';pill.style.background='rgba(74,222,128,0.1)';}
+  else if(phase==='ready'){pill.style.color=ACC_LIGHT;pill.style.borderColor='rgba(200,16,46,0.4)';pill.style.background='rgba(200,16,46,0.12)';}
+  else{pill.style.color=ACC_LIGHT;pill.style.borderColor='rgba(200,16,46,0.4)';pill.style.background='rgba(200,16,46,0.12)';}
+}
+
+function goHome() {
+  clearTimeout(autoHomeTimeout);
+  stopTimer(); activePid = null; curPreset = null;
+  document.getElementById('t-display').classList.remove('flash-text');
+  document.getElementById('t-minsec').textContent = '00:00'; 
+  document.getElementById('t-ms').textContent = '.00';
+  document.getElementById('t-ms').style.display = 'none'; // strictly hide on home screen
+  document.getElementById('round-counter').style.display = 'none';
+  applyTimerStyle(); 
+  setPhasePill('Select a timer', 'ready');
+  updateMainCircle(100, ACC);
+  syncUIState(); render();
+}
+
+function togglePlay(){
+  if(!curPreset){speak('Select a timer to begin.');return;}
+  if(paused){
+    paused=false;
+    document.getElementById('btn-play').innerHTML='&#10074;&#10074;';
+    syncUIState();
+    if(curRound===0&&!isRest&&!isReady) {
+        if(curPreset.disableGetReady) {
+            curRound=1; startRound();
+        } else {
+            startGetReady();
+        }
+    }
+    else {
+        targetTime = Date.now() + timeLeftMs;
+        lastSecLeft = -1;
+        reqFrame = requestAnimationFrame(tick);
+    }
+  } else {
+    paused=true;
+    document.getElementById('btn-play').innerHTML='&#9654;';
+    syncUIState();
+    cancelAnimationFrame(reqFrame);
+    playBeep(440, 0.1, 0.2, 'sine');
+  }
+}
+
+function startGetReady(){
+  isReady=true; isRest=false;
+  var gr = curPreset.getReady !== undefined ? curPreset.getReady : 10;
+  timeLeftMs=gr*1000; totalTimeMs=gr*1000;
+  if(curRound===0) curRound=1;
+  setPhasePill('Get Ready', 'ready');
+  updateMainCircle(100, ACC_LIGHT);
+  renderTimerText('ready');
+  speak("Get ready");
+  
+  targetTime = Date.now() + timeLeftMs;
+  lastSecLeft = -1;
+  reqFrame = requestAnimationFrame(tick);
+}
+
+function startRound(){
+  var w=(curPreset.workMin||0)*60 + (curPreset.workSec||0);
+  timeLeftMs=w*1000; totalTimeMs=w*1000;
+  
+  var rc = document.getElementById('round-counter');
+  rc.style.display = 'block';
+  rc.textContent = 'Round ' + curRound + ' of ' + curPreset.rounds;
+  
+  setPhasePill('Work','work');
+  updateMainCircle(100);
+  renderTimerText('work');
+  
+  startOfRoundBeep(); 
+  
+  var sec = findSectionForPreset(activePid);
+  var isWrestling = sec && sec.name.toLowerCase().includes('wrestling');
+  speak((isWrestling ? "Wrestling round " : "Round ") + curRound);
+  
+  targetTime = Date.now() + timeLeftMs;
+  lastSecLeft = -1;
+  reqFrame = requestAnimationFrame(tick);
+}
+
+function nextPhase(){
+  cancelAnimationFrame(reqFrame);
+  document.getElementById('t-display').classList.remove('flash-text');
+
+  if(isReady){
+    isReady=false;
+    startRound();
+    return;
+  }
+  
+  if(!isRest){
+    endOfRoundBeep(); 
+    var rest=curPreset.disableRest ? 0 : ((curPreset.restMin||0)*60 + (curPreset.restSec||0));
+    if(rest>0&&curRound<curPreset.rounds){
+      isRest=true; timeLeftMs=rest*1000; totalTimeMs=rest*1000;
+      document.getElementById('round-counter').textContent = 'Resting';
+      setPhasePill('Rest','rest');
+      updateMainCircle(100, timerCfg.restColor||'#f59e0b');
+      
+      var rSpeech = buildTimeSpeechStr(curPreset.restMin||0, curPreset.restSec||0);
+      if(rSpeech) speak("Rest for " + rSpeech);
+      
+      if(!paused) {
+          targetTime = Date.now() + timeLeftMs;
+          lastSecLeft = -1;
+          reqFrame = requestAnimationFrame(tick);
+      }
+    } else {
+      if(curRound>=curPreset.rounds){done();return;}
+      isRest=false; curRound++; startRound();
+    }
+  } else {
+    isRest=false;
+    if(curRound>=curPreset.rounds){done();return;}
+    curRound++; startRound();
+  }
+}
+
+function prevPhase() {
+    if(curRound === 0) return; 
+    
+    cancelAnimationFrame(reqFrame);
+    document.getElementById('t-display').classList.remove('flash-text');
+    var elapsedMs = totalTimeMs - timeLeftMs;
+
+    if (isRest) {
+        if (elapsedMs > 3000) {
+            timeLeftMs = totalTimeMs;
+        } else {
+            isRest = false;
+            var w = (curPreset.workMin||0)*60 + (curPreset.workSec||0);
+            timeLeftMs = w*1000; totalTimeMs = w*1000;
+            var rc = document.getElementById('round-counter');
+            rc.textContent = 'Round ' + curRound + ' of ' + curPreset.rounds;
+            setPhasePill('Work','work');
+        }
+    } else if (isReady) {
+        timeLeftMs = totalTimeMs;
+    } else {
+        if (elapsedMs > 3000) {
+            timeLeftMs = totalTimeMs;
+        } else {
+            if (curRound > 1) {
+                curRound--;
+                var r = curPreset.disableRest ? 0 : ((curPreset.restMin||0)*60 + (curPreset.restSec||0));
+                if(r > 0) {
+                    isRest = true;
+                    timeLeftMs = r*1000; totalTimeMs = r*1000;
+                    document.getElementById('round-counter').textContent = 'Resting';
+                    setPhasePill('Rest','rest');
+                } else {
+                    isRest = false;
+                    var w = (curPreset.workMin||0)*60 + (curPreset.workSec||0);
+                    timeLeftMs = w*1000; totalTimeMs = w*1000;
+                    document.getElementById('round-counter').textContent = 'Round ' + curRound + ' of ' + curPreset.rounds;
+                    setPhasePill('Work','work');
+                }
+            } else {
+                isReady = !curPreset.disableGetReady;
+                if(isReady) {
+                    var gr = curPreset.getReady !== undefined ? curPreset.getReady : 10;
+                    timeLeftMs = gr*1000; totalTimeMs = gr*1000;
+                    document.getElementById('round-counter').style.display = 'none';
+                    setPhasePill('Get Ready','ready');
+                } else {
+                    curRound = 1;
+                    var w = (curPreset.workMin||0)*60 + (curPreset.workSec||0);
+                    timeLeftMs = w*1000; totalTimeMs = w*1000;
+                    document.getElementById('round-counter').textContent = 'Round ' + curRound + ' of ' + curPreset.rounds;
+                    setPhasePill('Work','work');
+                }
+            }
+        }
+    }
+
+    renderTimerText();
+    
+    if(!paused) {
+        targetTime = Date.now() + timeLeftMs;
+        lastSecLeft = -1;
+        reqFrame = requestAnimationFrame(tick);
+    }
+}
+
+function skipPhase(){if(!paused)nextPhase();}
+
+function done(){
+  paused=true;
+  document.getElementById('btn-play').innerHTML='&#9654;';
+  document.getElementById('t-display').classList.remove('flash-text');
+  document.getElementById('round-counter').textContent = 'Session Complete';
+  syncUIState();
+  document.getElementById('t-minsec').textContent = 'Done!';
+  document.getElementById('t-ms').style.display = 'none'; // explicitly hide ms
+  setPhasePill('Finished','done');
+  updateMainCircle(0, '#4ade80');
+  
+  // Return to the home screen automatically after 4 seconds
+  autoHomeTimeout = setTimeout(function() {
+      goHome();
+  }, 4000);
+}
+
+function stopTimer(){
+  cancelAnimationFrame(reqFrame); paused=true; curRound=0; isRest=false; isReady=false;
+  document.getElementById('btn-play').innerHTML='&#9654;';
+  document.getElementById('t-display').classList.remove('flash-text');
+  document.getElementById('round-counter').style.display = 'none';
+  syncUIState();
+  
+  if(curPreset) {
+      var s = findSectionForPreset(activePid);
+      var w=(curPreset.workMin||0)*60 + (curPreset.workSec||0);
+      timeLeftMs=w*1000; totalTimeMs=w*1000;
+      renderTimerText('work');
+      setPhasePill(getPresetFullName(curPreset, s), 'work');
+      updateMainCircle(100, findSectionColor(activePid));
+  } else {
+      document.getElementById('t-minsec').textContent = '00:00';
+      document.getElementById('t-ms').textContent = '.00';
+      setPhasePill('Select a timer','ready');
+      updateMainCircle(100, ACC);
+  }
+}
+
+// ── WALLPAPER ───────────────────────────────────────────────
+function loadWP(e){
+  var f=e.target.files[0]; if(!f)return;
+  var r=new FileReader();
+  r.onload=function(ev){
+    wpLoaded=true; wpScale=100; wpPosX=50; wpPosY=50;
+    document.getElementById('wp-scale').value=100; document.getElementById('wp-scale-v').textContent='100%';
+    document.getElementById('wp-posX').value=50; document.getElementById('wp-posX-v').textContent='50%';
+    document.getElementById('wp-posY').value=50; document.getElementById('wp-posY-v').textContent='50%';
+    var wp=document.getElementById('wp');
+    wp.style.backgroundImage='url('+ev.target.result+')'; wp.style.backgroundSize='cover'; wp.style.backgroundPosition='50% 50%';
+    document.getElementById('app').style.background='transparent';
+    document.getElementById('wp-scale-row').style.display='flex';
+    document.getElementById('wp-posX-row').style.display='flex';
+    document.getElementById('wp-posY-row').style.display='flex';
+    saveLocal(); 
+  };
+  r.readAsDataURL(f);
+}
+
+function clearWP(){
+  wpLoaded=false; document.getElementById('wp').style.backgroundImage='none';
+  document.getElementById('app').style.background=timerCfg.bgColor;
+  document.getElementById('wp-scale-row').style.display='none';
+  document.getElementById('wp-posX-row').style.display='none';
+  document.getElementById('wp-posY-row').style.display='none';
+  saveLocal();
+}
+
+// ── SECTIONS & PRESETS ──────────────────────────────────────
+function addSection(){
+    sections.push({id:nsid++,name:'Name this group...',color:'#7f77dd',presets:[]}); 
+    saveLocal(); 
+    render();
+}
+function delSection(id){sections=sections.filter(s=>s.id!==id); saveLocal(); render();}
+
+function addPreset(sid){
+  var s=sections.find(x=>x.id===sid); if(!s)return;
+  var p={id:npid++,rounds:3,workMin:3,workSec:0,restMin:1,restSec:0,getReady:10,getReadyBeep:10,warnBeepSec:5,warnFlashSec:10,announceMin:true,announce30s:true,hidden:false,showMs:false,disableRest:false,disableGetReady:false};
+  s.presets.push(p); saveLocal(); render(); openPresetEdit(p.id);
+}
+
+function delPreset(pid){
+  for(var s of sections) s.presets=s.presets.filter(p=>p.id!==pid);
+  if(activePid===pid){stopTimer();activePid=null;curPreset=null;syncUIState();}
+  if(editPid===pid) closePresetEdit();
+  saveLocal(); render();
+}
+
+function togglePeDisabled() {
+    var dRest = document.getElementById('pe-drest').checked;
+    var dGr = document.getElementById('pe-dgr').checked;
+    
+    document.getElementById('pe-rm').disabled = dRest;
+    document.getElementById('pe-rs').disabled = dRest;
+    document.getElementById('lbl-rest').style.opacity = dRest ? '0.4' : '1';
+    document.getElementById('lbl-rm').style.opacity = dRest ? '0.4' : '1';
+    document.getElementById('lbl-rs').style.opacity = dRest ? '0.4' : '1';
+    
+    document.getElementById('pe-gr').disabled = dGr;
+    document.getElementById('pe-grb').disabled = dGr;
+    document.getElementById('lbl-gr').style.opacity = dGr ? '0.4' : '1';
+    document.getElementById('lbl-grs').style.opacity = dGr ? '0.4' : '1';
+    document.getElementById('lbl-grb').style.opacity = dGr ? '0.4' : '1';
+    document.getElementById('lbl-grb-sub').style.opacity = dGr ? '0.4' : '1';
+    document.getElementById('lbl-grbs').style.opacity = dGr ? '0.4' : '1';
+}
+
+function openPresetEdit(id){
+  editPid=id;
+  var p=findPreset(id); if(!p)return;
+  var s=findSectionForPreset(id);
+  var el=document.getElementById('preset-edit-modal');
+  el.style.display='block';
+  
+  var gr = p.getReady !== undefined ? p.getReady : 10;
+  var grb = p.getReadyBeep !== undefined ? p.getReadyBeep : gr;
+  var wb = p.warnBeepSec !== undefined ? p.warnBeepSec : 5;
+  var wf = p.warnFlashSec !== undefined ? p.warnFlashSec : 10;
+  var aMin = p.announceMin ? 'checked' : '';
+  var a30s = p.announce30s ? 'checked' : '';
+  var hid = p.hidden ? 'checked' : '';
+  var msC = p.showMs ? 'checked' : '';
+  var dRest = p.disableRest ? 'checked' : '';
+  var dGr = p.disableGetReady ? 'checked' : '';
+  
+  el.innerHTML='<div class="modal-wrap"><div class="modal-title">Edit timer</div>'
+    +'<div class="mrow"><label>No of Rounds</label><input type="number" id="pe-rounds" value="'+p.rounds+'" min="1" max="99" style="width:80px" oninput="pePreview()"></div>'
+    
+    +'<div class="mrow"><label>Round time</label>'
+    +'<div class="input-group"><input type="number" id="pe-wm" value="'+(p.workMin||0)+'" min="0" max="59" oninput="pePreview()"><span class="unit">m</span>'
+    +'<input type="number" id="pe-ws" value="'+(p.workSec||0)+'" min="0" max="59" oninput="pePreview()"><span class="unit">s</span></div></div>'
+    
+    +'<div class="mrow"><label id="lbl-rest">Rest time</label>'
+    +'<div class="input-group"><input type="number" id="pe-rm" value="'+(p.restMin||0)+'" min="0" max="59" oninput="pePreview()"><span class="unit" id="lbl-rm">m</span>'
+    +'<input type="number" id="pe-rs" value="'+(p.restSec||0)+'" min="0" max="59" oninput="pePreview()"><span class="unit" id="lbl-rs">s</span></div></div>'
+    
+    +'<div class="mrow"><label id="lbl-gr">Get Ready time</label>'
+    +'<div class="input-group"><input type="number" id="pe-gr" value="'+gr+'" min="0" max="999" oninput="pePreview()"><span class="unit" id="lbl-grs">s</span></div></div>'
+    
+    +'<div class="mrow"><div style="min-width:140px; display:flex; flex-direction:column;"><label id="lbl-grb" style="margin-bottom:2px; min-width:auto;">Get Ready beeps</label><span id="lbl-grb-sub" style="font-size:11px;color:rgba(255,255,255,0.4);">(one beep per second)</span></div>'
+    +'<div class="input-group"><input type="number" id="pe-grb" value="'+grb+'" min="0" max="999" oninput="pePreview()"><span class="unit" id="lbl-grbs">s</span></div></div>'
+
+    +'<div class="mrow"><div style="min-width:140px; display:flex; flex-direction:column;"><label style="margin-bottom:2px; min-width:auto;">End of round beeps</label><span style="font-size:11px;color:rgba(255,255,255,0.4);">(one beep per second)</span></div>'
+    +'<div class="input-group"><input type="number" id="pe-warnb" value="'+wb+'" min="0" max="59" oninput="pePreview()"><span class="unit">s</span></div></div>'
+    
+    +'<div class="mrow"><label>End of round flash</label>'
+    +'<div class="input-group"><input type="number" id="pe-warnf" value="'+wf+'" min="0" max="59" oninput="pePreview()"><span class="unit">s</span></div></div>'
+
+    +'<div class="mrow-col">'
+    +'<label><input type="checkbox" id="pe-amin" '+aMin+'>Announce remaining round time every minute</label>'
+    +'<label><input type="checkbox" id="pe-a30s" '+a30s+'>Announce remaining round time every 30 secs</label>'
+    +'<label><input type="checkbox" id="pe-ms" '+msC+'>Show milliseconds on round countdown timer</label>'
+    +'<label><input type="checkbox" id="pe-hid" '+hid+'>Hide on timer display</label>'
+    +'<label><input type="checkbox" id="pe-drest" '+dRest+' onchange="togglePeDisabled(); pePreview()">Disable Rest Period</label>'
+    +'<label><input type="checkbox" id="pe-dgr" '+dGr+' onchange="togglePeDisabled(); pePreview()">Disable Get Ready</label>'
+    +'</div>'
+    
+    +'<div style="margin-top:30px; display:flex; flex-direction:column; align-items:center; background:rgba(0,0,0,0.2); padding:20px; border-radius:14px; border:1px solid rgba(255,255,255,0.05);">'
+    +'<span style="color:rgba(255,255,255,0.5); font-size:13px; margin-bottom:12px; text-transform:uppercase; letter-spacing:1px; font-weight:700;">This timer buttons label will be shown as:</span>'
+    +'<span class="preview-tag" id="pe-prev" style="margin-top:0; width:100%;">'+getPresetFullName(p, s)+'</span>'
+    +'</div>'
+    
+    +'<div style="margin-top:24px; display:flex; flex-wrap:wrap;">'
+    +'<button class="sbtn" onclick="savePreset()">Save</button>'
+    +'<button class="cbtn2" onclick="clonePreset()">Clone</button>'
+    +'<button class="cbtn2" onclick="closePresetEdit()">Cancel</button>'
+    +'</div></div>';
+    
+    // Set initial disabled state based on current checkboxes
+    togglePeDisabled();
+}
+
+function pePreview(){
+  var r=parseInt(document.getElementById('pe-rounds').value)||0;
+  var wm=parseInt(document.getElementById('pe-wm').value)||0;
+  var ws=parseInt(document.getElementById('pe-ws').value)||0;
+  var rm=parseInt(document.getElementById('pe-rm').value)||0;
+  var rs=parseInt(document.getElementById('pe-rs').value)||0;
+  var dRest=document.getElementById('pe-drest').checked;
+  var s=findSectionForPreset(editPid);
+  var tempP = {rounds:r, workMin:wm, workSec:ws, restMin:rm, restSec:rs, disableRest:dRest};
+  document.getElementById('pe-prev').textContent = getPresetFullName(tempP, s);
+}
+
+function savePreset(){
+  var p=findPreset(editPid); if(!p)return;
+  p.rounds=parseInt(document.getElementById('pe-rounds').value)||p.rounds;
+  p.workMin=parseInt(document.getElementById('pe-wm').value)||0;
+  p.workSec=parseInt(document.getElementById('pe-ws').value)||0;
+  p.restMin=parseInt(document.getElementById('pe-rm').value)||0;
+  p.restSec=parseInt(document.getElementById('pe-rs').value)||0;
+  
+  p.getReady=parseInt(document.getElementById('pe-gr').value)||0;
+  p.getReadyBeep=parseInt(document.getElementById('pe-grb').value)||0;
+  p.warnBeepSec=parseInt(document.getElementById('pe-warnb').value)||0;
+  p.warnFlashSec=parseInt(document.getElementById('pe-warnf').value)||0;
+  p.announceMin=document.getElementById('pe-amin').checked;
+  p.announce30s=document.getElementById('pe-a30s').checked;
+  p.hidden=document.getElementById('pe-hid').checked;
+  p.showMs=document.getElementById('pe-ms').checked;
+  p.disableRest=document.getElementById('pe-drest').checked;
+  p.disableGetReady=document.getElementById('pe-dgr').checked;
+  
+  if(activePid===editPid) loadPreset(editPid);
+  saveLocal(); closePresetEdit(); render();
+}
+
+function clonePreset(){
+  var p=findPreset(editPid); var s=findSectionForPreset(editPid);
+  if(!p || !s) return;
+  var newP = Object.assign({}, p); newP.id = npid++; s.presets.push(newP);
+  saveLocal(); closePresetEdit(); render();
+}
+
+function closePresetEdit(){editPid=null;document.getElementById('preset-edit-modal').style.display='none';}
+
+// ── RENDER ──────────────────────────────────────────────────
+function render(){
+  var wrap=document.getElementById('sections-wrap');
+  var homeRing=document.getElementById('home-preset-ring');
+  wrap.innerHTML=''; homeRing.innerHTML='';
+  
+  for(var s of sections){
+    var sd=document.createElement('div'); sd.className='sec-block';
+    var hdr=document.createElement('div'); hdr.className='sec-hdr';
+    var ni=document.createElement('input'); ni.className='sec-name'; ni.value=s.name;
+    (function(sid){ni.onchange=function(){var sec=sections.find(x=>x.id===sid);if(sec)sec.name=this.value;saveLocal();render();};})(s.id);
+    
+    var ci=document.createElement('div'); ci.className='sec-color-dot'; ci.style.background=s.color;
+    (function(sid){ci.onclick=function(){cycleSectionColor(sid);};})(s.id);
+    
+    var di=document.createElement('button'); di.className='sec-del'; di.innerHTML='&#10005;';
+    (function(sid){di.onclick=function(){delSection(sid);};})(s.id);
+    hdr.appendChild(ni); hdr.appendChild(ci); hdr.appendChild(di);
+    sd.appendChild(hdr);
+    
+    var grid=document.createElement('div'); grid.className='btns-grid';
+    
+    for(var p of s.presets){
+      var fullName = getPresetFullName(p, s);
+
+      // Home screen button
+      if (!p.hidden) {
+          (function(preset,sec, fName){
+            var homeBtn = document.createElement('div'); homeBtn.className = 'home-btn';
+            homeBtn.style.borderColor = sec.color;
+            var hLbl = document.createElement('div'); hLbl.className='home-btn-label'; hLbl.textContent=fName;
+            homeBtn.appendChild(hLbl);
+            homeBtn.onclick = function() { loadPreset(preset.id); };
+            homeRing.appendChild(homeBtn);
+          })(p, s, fullName);
+      }
+
+      // Edit menu button
+      (function(preset,sec, fName){
+        var isActive=activePid===preset.id;
+        var card=document.createElement('div');
+        card.className='circ-btn' + (isActive?' active':'') + (preset.hidden?' hidden-preset':'');
+        card.style.borderColor=sec.color; 
+        
+        var lbl=document.createElement('div'); lbl.className='circ-label'; lbl.textContent=fName;
+        var xbtn=document.createElement('div'); xbtn.className='circ-x'; xbtn.innerHTML='&#10005;';
+        (function(pid){xbtn.onclick=function(e){e.stopPropagation();delPreset(pid);};})(preset.id);
+        var ebtn=document.createElement('div'); ebtn.className='circ-edit-dot'; ebtn.innerHTML='&#9998;';
+        (function(pid){ebtn.onclick=function(e){e.stopPropagation();openPresetEdit(pid);};})(preset.id);
+        
+        card.appendChild(lbl); card.appendChild(xbtn); card.appendChild(ebtn);
+        grid.appendChild(card);
+      })(p, s, fullName);
+    }
+    var addC=document.createElement('button'); addC.className='add-circ'; addC.innerHTML='+';
+    (function(sid){addC.onclick=function(){addPreset(sid);};})(s.id);
+    grid.appendChild(addC); sd.appendChild(grid); wrap.appendChild(sd);
+  }
+  applyTimerStyle();
+}
+
+// ── INITIALIZATION ──
+loadLocal();
+document.getElementById('app').style.background=timerCfg.bgColor;
+syncSettingsUI();
+render(); applyTimerStyle(); syncUIState();
+
+if (!activePid) {
+   document.getElementById('phase-pill').textContent = 'Select a timer';
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('service-worker.js').catch(function (err) {
+      console.error('SW registration failed:', err);
+    });
+  });
+}
+</script>
+</body>
+</html>
